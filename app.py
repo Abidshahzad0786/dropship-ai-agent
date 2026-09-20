@@ -3,16 +3,17 @@ import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image
 import requests
+import re
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
-    page_title="My Copilot",
+    page_title="My Personal Copilot",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- CSS FOR CLEAN CHAT & BOTTOM CONTROLS -----------------
+# ----------------- CLEAN UI CSS -----------------
 st.markdown("""
 <style>
     .stApp {
@@ -20,14 +21,12 @@ st.markdown("""
         color: #111b21;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    /* Messages viewport with bottom padding */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 12rem !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 7rem !important;
         max-width: 800px;
         margin: 0 auto;
     }
-    /* Clean chat bubbles */
     [data-testid="stChatMessage"] {
         background-color: #ffffff;
         border-radius: 14px;
@@ -40,7 +39,6 @@ st.markdown("""
         color: #111b21 !important;
         font-size: 15px;
     }
-    /* Fixed bottom input bar */
     div[data-testid="stChatInput"] {
         position: fixed;
         bottom: 8px;
@@ -49,19 +47,27 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- SYSTEM INSTRUCTION -----------------
-SYSTEM_INSTRUCTION = """
-You are a direct, professional, and friendly Personal Copilot & eCommerce Partner.
-CRITICAL RULES:
-1. ALWAYS reply in natural, easy Roman Urdu (using English letters, e.g. 'Salam! Main aapki kya madad kar sakta hoon?').
-2. NEVER use Hindi script (Devanagari characters like नमस्ते) or Arabic script.
-3. Be direct, helpful, and concise. Solve tasks, generate photos, and calculate profits immediately without unnecessary lecture.
-"""
+# ----------------- REASONING STRIPPER (CLEANS BULLETS) -----------------
+def extract_clean_text(raw_text):
+    if not raw_text:
+        return ""
+    lines = raw_text.strip().split("\n")
+    cleaned = []
+    for line in lines:
+        l = line.strip().lower()
+        if l.startswith(("•", "*", "-", "◦")) and any(k in l for k in ["user said", "goal:", "constraint", "roman urdu", "hindi", "friendly", "direct"]):
+            continue
+        cleaned.append(line)
+    result = "\n".join(cleaned).strip()
+    # Remove outer quotes if wrapped
+    if result.startswith('"') and result.endswith('"') and len(result) > 2:
+        result = result[1:-1].strip()
+    return result if result else raw_text.strip()
 
 # ----------------- SIDEBAR -----------------
 with st.sidebar:
     st.markdown("### ⚙️ **Settings**")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your key here")
+    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini key")
     if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
@@ -69,11 +75,11 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ----------------- HEADER (OOPAR SIRF TITLE) -----------------
+# ----------------- 1. HEADER (TOP) -----------------
 st.markdown("""
-<div style="text-align: center; margin-bottom: 1.5rem;">
+<div style="text-align: center; margin-bottom: 1rem;">
     <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">⚡ My Personal Copilot</h3>
-    <p style="color: #5f6368; font-size: 13px; margin-top: 2px;">24/7 Voice | Vision | Assistant</p>
+    <p style="color: #5f6368; font-size: 13px; margin-top: 2px;">24/7 Voice | Vision | Autonomous Assistant</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -91,43 +97,56 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
 }
 
+SYSTEM_INSTRUCTION = """
+You are a friendly, hyper-practical Personal Copilot & eCommerce Partner.
+Rules:
+1. ALWAYS speak directly in easy, natural Roman Urdu.
+2. NEVER output your inner reasoning, constraints, or thought process.
+3. Keep answers concise, helpful, and direct.
+"""
+
 def generate_image(prompt):
     return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
 
-# ----------------- 1. DISPLAY CHAT MESSAGES IN MIDDLE -----------------
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if "image" in msg:
-            st.image(msg["image"], use_container_width=True)
+# ----------------- 2. CHAT HISTORY (MIDDLE SCREEN) -----------------
+chat_container = st.container()
+with chat_container:
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            if "image" in msg:
+                st.image(msg["image"], use_container_width=True)
 
-# ----------------- 2. BOTTOM CONTROLS (BILKUL NEECHE CHAT KE SATH) -----------------
-st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+# ----------------- 3. CONTROLS DOCK (BILKUL NEECHE) -----------------
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 bottom_col1, bottom_col2 = st.columns([1, 1])
 
 with bottom_col1:
-    uploaded_file = st.file_uploader("📎 Photo / Document", type=["png", "jpg", "jpeg", "webp"])
+    with st.expander("📎 Photo / Document", expanded=False):
+        uploaded_file = st.file_uploader("Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
 
 with bottom_col2:
-    audio_file = st.audio_input("🎙️ Voice Mic")
+    with st.expander("🎙️ Voice Mic", expanded=False):
+        audio_file = st.audio_input("Audio", label_visibility="collapsed")
 
-# Bottom Text Input
+# ----------------- 4. BOTTOM INPUT BAR -----------------
 user_prompt = st.chat_input("Message likhein ya photo prompt dein...")
 
-# ----------------- 3. EXECUTION LOGIC -----------------
+# ----------------- 5. EXECUTION LOGIC -----------------
 if user_prompt or uploaded_file or audio_file:
     # Photo Generation Check
     if user_prompt and (user_prompt.lower().startswith("photo:") or user_prompt.lower().startswith("image:")):
         clean_prompt = user_prompt.split(":", 1)[1].strip()
         st.session_state.messages.append({"role": "user", "content": user_prompt})
-        with st.chat_message("user"):
-            st.markdown(user_prompt)
-            
-        with st.chat_message("assistant"):
-            with st.spinner("Photo bana raha hoon..."):
-                img_url = generate_image(clean_prompt)
-                st.image(img_url, use_container_width=True)
-                st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(user_prompt)
+            with st.chat_message("assistant"):
+                with st.spinner("Photo bana raha hoon..."):
+                    img_url = generate_image(clean_prompt)
+                    st.image(img_url, use_container_width=True)
+                    st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
+        st.rerun()
 
     # Voice, Vision & Text Processing
     else:
@@ -152,38 +171,33 @@ if user_prompt or uploaded_file or audio_file:
             display_text = "📎 [Photo Attached]"
 
         st.session_state.messages.append({"role": "user", "content": display_text})
-        with st.chat_message("user"):
-            st.markdown(display_text)
-            if pil_image:
-                st.image(pil_image, width=280)
-                
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response_text = None
-                models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-3.6-flash", "gemini-pro"]
-                
-                try:
-                    live_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    models_to_try = live_models + models_to_try
-                except Exception:
-                    pass
+        
+        # Call API
+        models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-3.6-flash", "gemini-pro"]
+        try:
+            live_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            models_to_try = live_models + models_to_try
+        except Exception:
+            pass
 
-                for model_name in models_to_try:
-                    try:
-                        m = genai.GenerativeModel(
-                            model_name=model_name,
-                            system_instruction=SYSTEM_INSTRUCTION,
-                            safety_settings=SAFETY_SETTINGS
-                        )
-                        res = m.generate_content(input_data)
-                        if res and res.text:
-                            response_text = res.text.strip()
-                            break
-                    except Exception:
-                        continue
-                
-                if response_text:
-                    st.markdown(response_text)
-                    st.session_state.messages.append({"role": "assistant", "content": response_text})
-                else:
-                    st.error("Error: Connect nahi ho saka.")
+        response_text = None
+        for model_name in models_to_try:
+            try:
+                m = genai.GenerativeModel(
+                    model_name=model_name,
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    safety_settings=SAFETY_SETTINGS
+                )
+                res = m.generate_content(input_data)
+                if res and res.text:
+                    response_text = extract_clean_text(res.text)
+                    break
+            except Exception:
+                continue
+
+        if response_text:
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
+        else:
+            st.session_state.messages.append({"role": "assistant", "content": "⚠️ Connection issue, dobara try karein."})
+            
+        st.rerun()
