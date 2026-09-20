@@ -5,27 +5,28 @@ import json
 import re
 import urllib.parse
 
-# Modern ChatGPT / Gemini Layout
-st.set_page_config(page_title="AI Dropship Copilot", page_icon="✨", layout="centered")
+# Sleek Modern Interface
+st.set_page_config(page_title="AI Dropship Agent", page_icon="✨", layout="centered")
 
 st.markdown("""
 <style>
-    .stApp { background-color: #131314; color: #E3E3E3; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .stChatMessage { background-color: #1E1F20; border-radius: 18px; padding: 12px 18px; margin-bottom: 12px; border: 1px solid #2D2E30; }
+    .stApp { background-color: #131314; color: #E3E3E3; }
+    .stChatMessage { background-color: #1E1F20; border-radius: 16px; padding: 12px 18px; margin-bottom: 10px; border: 1px solid #2D2E30; }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
-with st.sidebar:
-    st.markdown("### ✨ AI Control Center")
-    gemini_key = st.text_input("Google Gemini Free Key:", type="password", help="aistudio.google.com سے حاصل کریں")
-    target_platform = st.selectbox("Marketplace:", ["TikTok Shop", "Shopify", "WooCommerce"])
-    target_country = st.selectbox("Target Market:", ["Philippines (PHP ₱)", "USA (USD $)", "UAE (AED)", "UK (GBP £)"])
-    if st.button("🗑️ Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
+st.markdown("<h2 style='text-align: center; color: #4E95FF;'>⚡ Autonomous Dropship AI Agent</h2>", unsafe_allow_html=True)
 
-# Tool 1: AI Image Generator (100% Free Flux/SDXL)
+# 1. API Key Box directly on Main Screen (Easy Mobile Access)
+with st.expander("🔑 Click here to Enter / Save your Google Gemini Key", expanded=True):
+    gemini_key = st.text_input("Paste your Gemini API Key here (AIzaSy...):", type="password")
+    c1, c2 = st.columns(2)
+    with c1:
+        target_platform = st.selectbox("Marketplace:", ["TikTok Shop", "Shopify", "WooCommerce"])
+    with c2:
+        target_country = st.selectbox("Target Market:", ["Philippines (PHP ₱)", "USA (USD $)", "UAE (AED)", "UK (GBP £)"])
+
+# Tool 1: AI Image Generator (100% Free)
 def generate_ai_image(prompt):
     clean = urllib.parse.quote(prompt)
     return f"https://image.pollinations.ai/prompt/{clean}?width=800&height=800&nologo=true&enhance=true"
@@ -36,7 +37,7 @@ def scrape_data(url):
     try:
         res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, 'html.parser')
-        title = soup.find('h1').get_text(strip=True) if soup.find('h1') else (soup.find('title').get_text(strip=True) if soup.find('title') else "Imported Item")
+        title = soup.find('h1').get_text(strip=True) if soup.find('h1') else (soup.find('title').get_text(strip=True) if soup.find('title') else "Product Item")
         images = []
         for img in soup.find_all('img'):
             s = img.get('src') or img.get('data-src') or img.get('data-original')
@@ -50,31 +51,30 @@ def scrape_data(url):
     except Exception as e:
         return {"error": str(e)}
 
-# Tool 3: Google Gemini API Direct Caller
+# Tool 3: Universal Auto-Fallback Gemini Caller
 def call_gemini(prompt, api_key):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # Try latest stable Gemini models automatically
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-pro"]
     headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=25)
-        res = r.json()
-        if "candidates" in res:
-            return res["candidates"][0]["content"]["parts"][0]["text"]
-        elif "error" in res:
-            return f"Gemini Error: {res['error'].get('message', 'Key error')}"
-        return "No response from AI."
-    except Exception as e:
-        return f"Connection error: {str(e)}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
+    for model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        try:
+            r = requests.post(url, headers=headers, json=payload, timeout=25)
+            res = r.json()
+            if "candidates" in res and len(res["candidates"]) > 0:
+                return res["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception:
+            continue
+            
+    return "Error connecting to AI. Please verify your API key."
 
-# Chat Session
+# Chat History
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "👋 **Hello! I am your AI Dropshipping Agent.**\n\n- 🔗 Paste any product link to clean specs & write viral TikTok/Shopify descriptions with pictures.\n- 🎨 Ask me to create custom AI product photos.\n- 💬 Ask me anything in English or Roman Urdu!"}
+        {"role": "assistant", "content": "👋 **Hello! I am your AI Dropshipping Agent.**\n\n- 🔗 Paste any product link to clean specs & write viral TikTok descriptions.\n- 🎨 Ask me to create custom AI product photos.\n- 💬 Ask me anything in English or Roman Urdu!"}
     ]
-
-st.markdown("<h2 style='text-align: center; color: #4E95FF;'>⚡ Dropship AI Assistant</h2>", unsafe_allow_html=True)
 
 # Render Chat
 for msg in st.session_state.messages:
@@ -86,8 +86,8 @@ for msg in st.session_state.messages:
                 with cols[i]:
                     st.image(im, use_container_width=True)
 
-# Chat Input
-user_input = st.chat_input("Talk to AI (e.g. 'Scrape https://...', 'Generate photo of...', 'Find cheap items')...")
+# Chat Input Box
+user_input = st.chat_input("Ask anything, paste product link, or request photo...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -113,7 +113,7 @@ if user_input:
                     st.error(f"Error: {data['error']}")
                 else:
                     if gemini_key:
-                        prompt = f"""You are an expert E-Commerce Copywriter for {target_platform} in {target_country}.
+                        prompt = f"""You are an elite E-Commerce Dropshipping Copywriter for {target_platform} in {target_country}.
                         Clean this supplier product data. Delete useless technical tables and messy columns.
                         Write a high-converting sales description with emojis and embed these image URLs inside HTML <img> tags between sections.
                         
@@ -138,7 +138,7 @@ if user_input:
         # 3. Conversational Chat
         else:
             if not gemini_key:
-                st.warning("⚠️ Please enter your free Google Gemini Key in the sidebar to chat with full AI intelligence!")
+                st.warning("⚠️ Please paste your Gemini Key in the top box first!")
             else:
                 system_prompt = f"You are an expert autonomous Dropshipping Assistant for {target_platform} ({target_country}). Help the user strategically in friendly English or Roman Urdu.\n\nUser: {user_input}"
                 ai_reply = call_gemini(system_prompt, gemini_key)
