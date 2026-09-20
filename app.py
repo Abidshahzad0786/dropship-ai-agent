@@ -12,43 +12,41 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- MOBILE RESPONSIVE & KEYBOARD SCROLL CSS -----------------
+# ----------------- MOBILE VIEWPORT & VISIBILITY CSS -----------------
 st.markdown("""
 <style>
-    /* Main Background */
     .stApp {
         background-color: #f8f9fa;
         color: #1f1f1f;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
-    /* Auto Scroll & Chat Container */
+    /* Fixed Top Margin so nothing gets cut off */
     .block-container {
-        padding-top: 1rem;
-        padding-bottom: 7.5rem;
+        padding-top: 3.8rem !important;
+        padding-bottom: 7.5rem !important;
         max-width: 850px;
-        overflow-anchor: auto;
-        scroll-behavior: smooth;
+        margin: 0 auto;
     }
     
-    /* Clean Message Cards */
+    /* Clean Cards for Chat */
     [data-testid="stChatMessage"] {
         background-color: #ffffff;
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 12px 16px;
-        margin-bottom: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         border: 1px solid #e3e7ed;
     }
     
-    p, span, div {
+    p, span, div, label {
         color: #1f1f1f !important;
     }
     
-    /* Pinned Bottom Container */
+    /* Pinned Bottom Chat Input */
     div[data-testid="stChatInput"] {
         position: fixed;
-        bottom: 8px;
+        bottom: 10px;
         z-index: 999;
     }
 </style>
@@ -56,55 +54,17 @@ st.markdown("""
 
 SYSTEM_INSTRUCTION = """
 You are a direct, hyper-practical Personal Copilot & Business Partner.
-1. Answer directly and concisely without moral lectures, generic filler, or repetitive warnings.
+1. Answer directly and concisely without moral lectures, disclaimers, or conversational fluff.
 2. Provide exact step-by-step solutions, code, calculations, and execution roadmaps.
 3. For dropshipping / products: Calculate exact cost, shipping, TikTok/Shopify ad spend, and net profit margins.
 """
 
 # ----------------- SIDEBAR -----------------
 with st.sidebar:
-    st.markdown("### ⚙️ **AI Studio Settings**")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Enter your Gemini API key")
+    st.markdown("### ⚙️ **Studio Key**")
+    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini API key")
     
-    # Live Model Fetching Function
-    @st.cache_data(show_spinner=False, ttl=600)
-    def fetch_live_models(_key):
-        model_options = {}
-        try:
-            genai.configure(api_key=_key)
-            models = genai.list_models()
-            for m in models:
-                if 'generateContent' in m.supported_generation_methods:
-                    clean_name = m.name.replace("models/", "")
-                    if "flash" in clean_name.lower() or "lite" in clean_name.lower():
-                        display_name = f"⚡ {clean_name} (Free Fast)"
-                    else:
-                        display_name = f"💎 {clean_name} (Pro / Advanced)"
-                    model_options[display_name] = m.name
-        except Exception:
-            pass
-        if not model_options:
-            model_options = {
-                "⚡ gemini-3.8-flash (Free Fast)": "models/gemini-3.8-flash",
-                "⚡ gemini-3.7-flash (Free Fast)": "models/gemini-3.7-flash",
-                "💎 gemini-3.1-pro-preview (Pro)": "models/gemini-3.1-pro-preview"
-            }
-        return model_options
-
-    if api_key:
-        available_models = fetch_live_models(api_key)
-        selected_display = st.selectbox("🤖 Choose AI Model", list(available_models.keys()), index=0)
-        selected_model_id = available_models[selected_display]
-    else:
-        selected_model_id = "models/gemini-3.8-flash"
-
-    st.markdown("---")
-    mode = st.radio(
-        "Task Mode",
-        ["💬 Direct Chat & Business", "🎨 Photo Generator (AI)", "📊 Profit & Sourcing Math"]
-    )
-    
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -112,20 +72,52 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ----------------- HEADER -----------------
-st.markdown(f"""
-<div style="text-align: center; margin-bottom: 1rem;">
-    <h3 style="color: #1a73e8; margin: 0; font-weight: 700;">✨ AI Studio Copilot</h3>
-    <p style="color: #5f6368; font-size: 13px; margin-top: 2px;">Model: <b>{selected_model_id.replace('models/', '')}</b></p>
-</div>
-""", unsafe_allow_html=True)
+# ----------------- MAIN TOP BAR (GOOGLE AI STUDIO STYLE) -----------------
+st.markdown("<h3 style='margin:0; color:#1a73e8; font-weight:700;'>✨ AI Studio Copilot</h3>", unsafe_allow_html=True)
 
 if not api_key:
-    st.info("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio API Key paste karein.")
+    st.warning("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio API Key paste karein.")
     st.stop()
 
 # Configure API
 genai.configure(api_key=api_key)
+
+# Dynamic Model Discovery with Latest Working Models
+@st.cache_data(show_spinner=False, ttl=300)
+def get_all_models(_key):
+    model_dict = {}
+    try:
+        models = genai.list_models()
+        for m in models:
+            if 'generateContent' in m.supported_generation_methods:
+                name = m.name.replace("models/", "")
+                # Exclude retired models
+                if "2.5-flash" in name:
+                    continue
+                tag = "⚡ Free Fast" if "flash" in name.lower() or "lite" in name.lower() else "💎 Pro"
+                model_dict[f"{name} ({tag})"] = m.name
+    except Exception:
+        pass
+    
+    if not model_dict:
+        model_dict = {
+            "gemini-3.6-flash (⚡ Free Fast)": "models/gemini-3.6-flash",
+            "gemini-3.8-flash (⚡ Free Fast)": "models/gemini-3.8-flash",
+            "gemini-3.7-flash (⚡ Free Fast)": "models/gemini-3.7-flash",
+            "gemini-3.5-flash-lite (⚡ Free Fast)": "models/gemini-3.5-flash-lite"
+        }
+    return model_dict
+
+available_models = get_all_models(api_key)
+
+# Top Bar Controls
+col_model, col_mode = st.columns([2, 2])
+with col_model:
+    selected_label = st.selectbox("🤖 Model Selection", list(available_models.keys()), index=0)
+    selected_model_id = available_models[selected_label]
+
+with col_mode:
+    mode = st.selectbox("🎯 Mode", ["💬 Chat & Business", "🎨 Photo Generator", "📊 Profit & Sourcing Math"])
 
 SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -144,15 +136,16 @@ for msg in st.session_state.messages:
         if "image" in msg:
             st.image(msg["image"], use_container_width=True)
 
-# ----------------- ATTACHMENT & INPUT (MOBILE BOTTOM PINNED) -----------------
-with st.expander("📎 Attach Photo / File (Tap to open)", expanded=False):
+# ----------------- ATTACHMENT BOX -----------------
+with st.expander("📎 Photo / Document Attach Karein", expanded=False):
     uploaded_file = st.file_uploader("Upload Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
 
+# ----------------- BOTTOM INPUT -----------------
 user_prompt = st.chat_input("Message your Copilot...")
 
-# ----------------- EXECUTION -----------------
+# ----------------- EXECUTION LOGIC -----------------
 if user_prompt or uploaded_file:
-    if mode == "🎨 Photo Generator (AI)" and user_prompt:
+    if mode == "🎨 Photo Generator" and user_prompt:
         st.session_state.messages.append({"role": "user", "content": f"🎨 {user_prompt}"})
         with st.chat_message("user"):
             st.markdown(f"🎨 {user_prompt}")
@@ -184,7 +177,7 @@ if user_prompt or uploaded_file:
                 st.image(pil_image, width=280)
                 
         with st.chat_message("assistant"):
-            with st.spinner("Processing..."):
+            with st.spinner("Thinking..."):
                 try:
                     model = genai.GenerativeModel(
                         model_name=selected_model_id,
