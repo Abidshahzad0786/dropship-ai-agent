@@ -1,328 +1,151 @@
 import streamlit as st
 import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
-from PIL import Image
-import hashlib
-import streamlit.components.v1 as components
+import requests
+import json
+import urllib.parse
 
-# ----------------- PAGE CONFIG -----------------
+# -------------------------------------------------------------
+# PAGE CONFIGURATION & STYLING
+# -------------------------------------------------------------
 st.set_page_config(
-    page_title="My Personal Copilot",
-    page_icon="⚡",
+    page_title="AI Super Copilot & Phone Controller",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# ----------------- CLEAN UI CSS -----------------
+# MacroDroid Webhook URL
+MACRODROID_URL = "https://trigger.macrodroid.com/3b017816-7e27-4e32-ad33-fe6b0e595c96/ai_command"
+
+# Custom Styling (Google AI Studio + WhatsApp Clean Theme)
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #f8f9fa;
-        color: #111b21;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    .stApp { background-color: #F8F9FA; color: #1F1F1F; }
+    .chat-card {
+        background-color: white;
+        padding: 15px 20px;
+        border-radius: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #E5E7EB;
     }
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 7.5rem !important;
-        max-width: 750px;
-        margin: 0 auto;
-    }
-    [data-testid="stChatMessage"] {
-        background-color: #ffffff;
-        border-radius: 14px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        border: 1px solid #e3e7ed;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    }
-    p, span, div {
-        color: #111b21 !important;
-    }
-    div[data-testid="stChatInput"] {
-        position: fixed;
-        bottom: 8px;
-        z-index: 999;
+    .action-badge {
+        background-color: #25D366;
+        color: white;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        margin-top: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- SIDEBAR -----------------
-with st.sidebar:
-    st.markdown("### ⚙️ **Settings**")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini key")
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.last_audio_hash = None
-        st.rerun()
+# -------------------------------------------------------------
+# API SETUP
+# -------------------------------------------------------------
+api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 if not api_key:
-    st.info("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio Key paste karein.")
+    st.error("⚠️ GEMINI_API_KEY secret mein add nahi hai!")
     st.stop()
 
-# Configure API
 genai.configure(api_key=api_key)
 
-SAFETY_SETTINGS = {
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-}
+# -------------------------------------------------------------
+# PHONE ACTION CONTROLLER (Webhook Dispatcher)
+# -------------------------------------------------------------
+def trigger_phone_action(action_type, phone="", text="", app_name=""):
+    """Phone par MacroDroid webhook trigger karta hai"""
+    try:
+        params = {
+            "action": action_type,
+            "phone": phone,
+            "text": text,
+            "app": app_name
+        }
+        res = requests.get(MACRODROID_URL, params=params, timeout=5)
+        return True
+    except Exception as e:
+        return False
 
-SYSTEM_INSTRUCTION = """
-You are a friendly, direct Personal Copilot & eCommerce Partner.
-Rules:
-1. ALWAYS reply in natural, easy Roman Urdu (using English alphabet).
-2. NEVER output your inner reasoning, constraints, or thought process.
-3. Keep answers direct, helpful, and concise.
+# -------------------------------------------------------------
+# GEMINI MODEL WITH PHONE CONTROLLER SYSTEM INSTRUCTIONS
+# -------------------------------------------------------------
+SYSTEM_PROMPT = """
+Aap aik All-in-One Executive AI Assistant aur Mobile Phone Copilot hain.
+Aapka user Roman Urdu mein baat karta hai.
+
+Phone Control Rules:
+1. Jab user kahe WhatsApp par message bhejo, phone call lagao ya koi app kholo, aap direct tool/action format mein output denge.
+2. Agar WhatsApp message bhejna ho to jawab ke aakhir mein aik secret JSON block shamil karein:
+<<<ACTION:{"action":"whatsapp", "phone":"NUM_OR_NAME", "text":"MSG_CONTENT"}>>>
+3. Hamesha direct, friendly aur insano jaisa Roman Urdu mein jawab dein. Faltoo lambi explanation na dein.
 """
 
-def extract_clean_text(raw_text):
-    if not raw_text:
-        return ""
-    lines = raw_text.strip().split("\n")
-    cleaned = []
-    for line in lines:
-        l = line.strip().lower()
-        if l.startswith(("•", "*", "-", "◦")) and any(k in l for k in ["user said", "goal:", "constraint", "roman urdu", "hindi", "friendly", "direct"]):
-            continue
-        cleaned.append(line)
-    result = "\n".join(cleaned).strip()
-    if result.startswith('"') and result.endswith('"') and len(result) > 2:
-        result = result[1:-1].strip()
-    return result if result else raw_text.strip()
-
-def generate_image(prompt):
-    return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
-
-# ----------------- TOP MODE SWITCHER -----------------
-app_mode = st.radio(
-    "Mode",
-    ["📞 Live Voice Call (Real-Time Talk)", "💬 Text & Photo Chat"],
-    horizontal=True,
-    label_visibility="collapsed"
+model = genai.GenerativeModel(
+    model_name="gemini-2.0-flash",
+    system_instruction=SYSTEM_PROMPT
 )
 
-st.markdown("---")
+# -------------------------------------------------------------
+# UI & CHAT ENGINE
+# -------------------------------------------------------------
+st.title("🤖 AI Personal Copilot & Phone Controller")
+st.write("24/7 Voice & Action Assistant — Ab aapke mobile par direct control ke sath!")
 
-# ==============================================================================
-# 1. LIVE VOICE CALL MODE (FIXED MULTI-MODEL FALLBACK)
-# ==============================================================================
-if app_mode == "📞 Live Voice Call (Real-Time Talk)":
-    st.markdown("""
-    <div style="text-align: center; margin-top: 1rem; margin-bottom: 1.5rem;">
-        <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">📞 Live Voice Call</h3>
-        <p style="color: #5f6368; font-size: 14px;">Mic dabayein aur direct bolna shuru karein</p>
-    </div>
-    """, unsafe_allow_html=True)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    live_call_html = f"""
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
-        <button id="callBtn" onclick="toggleCall()" style="
-            background: #0b57d0; 
-            color: white; 
-            border: none; 
-            width: 95px; 
-            height: 95px; 
-            border-radius: 50%; 
-            font-size: 34px; 
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(11, 87, 208, 0.35);
-            transition: all 0.3s ease;
-            outline: none;
-        ">🎙️</button>
-        
-        <p id="statusText" style="margin-top: 18px; font-weight: 600; font-size: 16px; color: #5f6368;">Call Start Karne Ke Liye Mic Dabayein</p>
-        <div id="liveTranscript" style="
-            margin-top: 15px; 
-            padding: 14px; 
-            background: #ffffff; 
-            border: 1px solid #e0e0e0; 
-            border-radius: 12px; 
-            width: 90%; 
-            min-height: 80px; 
-            text-align: center; 
-            color: #333; 
-            font-size: 15px;
-        ">Aapki live baat yahan show hogi...</div>
-    </div>
+# Display Past Messages
+for msg in st.session_state.messages:
+    role = msg["role"]
+    content = msg["content"]
+    with st.chat_message(role):
+        st.markdown(content)
 
-    <script>
-        let isCalling = false;
-        let recognition = null;
-        const apiKey = "{api_key}";
+# User Input
+user_input = st.chat_input("Bol kar ya likh kar command dein (e.g., Ali ko WhatsApp par message bhej do)...")
 
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {{
-            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRec();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN';
+if user_input:
+    # Append User Message
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-            recognition.onstart = function() {{
-                document.getElementById('statusText').innerText = "🟢 Sun raha hoon... Bolein!";
-                document.getElementById('statusText').style.color = "#00875a";
-                document.getElementById('callBtn').style.background = "#00875a";
-            }};
+    # Generate Response from AI
+    with st.chat_message("assistant"):
+        with st.spinner("AI phone se connect ho raha hai..."):
+            response = model.generate_content(user_input)
+            raw_text = response.text
 
-            recognition.onresult = async function(event) {{
-                const userSaid = event.results[0][0].transcript;
-                document.getElementById('liveTranscript').innerHTML = "<b>Aap:</b> " + userSaid;
-                document.getElementById('statusText').innerText = "⏳ Soch raha hoon...";
-                document.getElementById('statusText').style.color = "#d97706";
+            # Check if Action exists in response
+            action_triggered = False
+            clean_text = raw_text
 
-                const modelList = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-1.5-flash"];
-                let replyText = "";
+            if "<<<ACTION:" in raw_text:
+                start = raw_text.find("<<<ACTION:") + len("<<<ACTION:")
+                end = raw_text.find(">>>", start)
+                action_json_str = raw_text[start:end]
+                clean_text = raw_text[:raw_text.find("<<<ACTION:")].strip()
 
-                for (let m of modelList) {{
-                    try {{
-                        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${{m}}:generateContent?key=${{apiKey}}`, {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{
-                                contents: [{{ parts: [{{ text: userSaid }}] }}],
-                                systemInstruction: {{ parts: [{{ text: "You are a real-time conversational phone partner. Reply ONLY in 1-2 short, direct sentences in easy Roman Urdu. Never use Hindi Devanagari script or bullet points." }}] }}
-                            }})
-                        }});
-                        const data = await res.json();
-                        if (data.candidates && data.candidates[0].content.parts[0].text) {{
-                            replyText = data.candidates[0].content.parts[0].text.trim().replace(/[*_#]/g, '');
-                            break;
-                        }}
-                    }} catch (e) {{
-                        continue;
-                    }}
-                }}
+                try:
+                    action_data = json.loads(action_json_str)
+                    # Trigger Phone Webhook
+                    success = trigger_phone_action(
+                        action_type=action_data.get("action", "whatsapp"),
+                        phone=action_data.get("phone", ""),
+                        text=action_data.get("text", "")
+                    )
+                    if success:
+                        action_triggered = True
+                except Exception:
+                    pass
 
-                if (replyText) {{
-                    document.getElementById('liveTranscript').innerHTML += "<br><br><b style='color:#0b57d0;'>AI:</b> " + replyText;
-                    document.getElementById('statusText').innerText = "🔊 Bol raha hoon...";
-                    document.getElementById('statusText').style.color = "#0b57d0";
+            st.markdown(clean_text)
 
-                    window.speechSynthesis.cancel();
-                    const utterance = new SpeechSynthesisUtterance(replyText);
-                    utterance.lang = 'hi-IN';
-                    utterance.rate = 1.05;
+            if action_triggered:
+                st.success("⚡ Command aapke mobile phone par bhej di gayi hai!")
 
-                    utterance.onend = function() {{
-                        if (isCalling) {{
-                            recognition.start();
-                        }}
-                    }};
-                    window.speechSynthesis.speak(utterance);
-                }} else {{
-                    document.getElementById('statusText').innerText = "⚠️ Model response nahi de saka, dobara bolein.";
-                    if (isCalling) {{
-                        setTimeout(() => {{ try {{ recognition.start(); }} catch(err){{}} }}, 1500);
-                    }}
-                }}
-            }};
-
-            recognition.onerror = function(e) {{
-                if (isCalling) {{
-                    setTimeout(() => {{ try {{ recognition.start(); }} catch(err){{}} }}, 1000);
-                }}
-            }};
-        }} else {{
-            document.getElementById('statusText').innerText = "⚠️ Chrome Browser use karein";
-        }}
-
-        function toggleCall() {{
-            if (!recognition) return;
-            isCalling = !isCalling;
-            if (isCalling) {{
-                document.getElementById('callBtn').innerText = "🛑";
-                recognition.start();
-            }} else {{
-                document.getElementById('callBtn').innerText = "🎙️";
-                document.getElementById('callBtn').style.background = "#0b57d0";
-                document.getElementById('statusText').innerText = "Call Band Ho Gayi (Dobaray dabayein)";
-                document.getElementById('statusText').style.color = "#5f6368";
-                window.speechSynthesis.cancel();
-                recognition.stop();
-            }}
-        }}
-    </script>
-    """
-    components.html(live_call_html, height=360)
-
-# ==============================================================================
-# 2. STANDARD TEXT & PHOTO CHAT MODE
-# ==============================================================================
-else:
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "last_audio_hash" not in st.session_state:
-        st.session_state.last_audio_hash = None
-
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if "image" in msg:
-                st.image(msg["image"], use_container_width=True)
-
-    uploaded_file = st.file_uploader("📎 Photo ya Document Attach Karein", type=["png", "jpg", "jpeg", "webp"])
-    audio_file = st.audio_input("🎙️ Voice Note Record Karein")
-    user_prompt = st.chat_input("Message likhein...")
-
-    is_new_audio = False
-    audio_bytes_data = None
-    if audio_file:
-        audio_bytes_data = audio_file.read()
-        cur_hash = hashlib.md5(audio_bytes_data).hexdigest()
-        if cur_hash != st.session_state.last_audio_hash:
-            is_new_audio = True
-            st.session_state.last_audio_hash = cur_hash
-
-    if user_prompt or uploaded_file or is_new_audio:
-        if user_prompt and (user_prompt.lower().startswith("photo:") or user_prompt.lower().startswith("image:")):
-            clean_prompt = user_prompt.split(":", 1)[1].strip()
-            st.session_state.messages.append({"role": "user", "content": user_prompt})
-            with st.chat_message("user"):
-                st.markdown(user_prompt)
-            with st.chat_message("assistant"):
-                img_url = generate_image(clean_prompt)
-                st.image(img_url, use_container_width=True)
-                st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
-        else:
-            input_data = []
-            pil_image = None
-            if uploaded_file:
-                pil_image = Image.open(uploaded_file)
-                input_data.append(pil_image)
-            if is_new_audio:
-                input_data.append({"mime_type": "audio/wav", "data": audio_bytes_data})
-                input_data.append("Is audio ko sun kar sirf Roman Urdu mein direct aasan jawab do.")
-            if user_prompt:
-                input_data.append(user_prompt)
-                display_text = user_prompt
-            elif is_new_audio:
-                display_text = "🎙️ [Voice Note Sent]"
-            else:
-                display_text = "📎 [Photo Attached]"
-
-            st.session_state.messages.append({"role": "user", "content": display_text})
-            with st.chat_message("user"):
-                st.markdown(display_text)
-                if pil_image:
-                    st.image(pil_image, width=280)
-
-            with st.chat_message("assistant"):
-                with st.spinner("Processing..."):
-                    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-1.5-flash"]
-                    res_text = None
-                    for m_name in models_to_try:
-                        try:
-                            model = genai.GenerativeModel(m_name, system_instruction=SYSTEM_INSTRUCTION, safety_settings=SAFETY_SETTINGS)
-                            res = model.generate_content(input_data)
-                            if res and res.text:
-                                res_text = extract_clean_text(res.text)
-                                break
-                        except Exception:
-                            continue
-
-                    if res_text:
-                        st.markdown(res_text)
-                        st.session_state.messages.append({"role": "assistant", "content": res_text})
-                    else:
-                        st.error("Error: Connect nahi ho saka.")
+            # Store Clean Message
+            st.session_state.messages.append({"role": "assistant", "content": clean_text})
