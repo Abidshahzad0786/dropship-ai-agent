@@ -17,7 +17,7 @@ st.set_page_config(
 # MacroDroid & Gemini Configuration
 MACRODROID_URL = "https://trigger.macrodroid.com/3b017816-7e27-4e32-ad33-fe6b0e595c96/ai_command"
 FALLBACK_KEY = "AQ.Ab8RN6LzczOTyOyhS8yoBvQzLs8ogfa06jJIRdvlv_DoEOfZyA"
-API_KEY = st.secrets.get("GEMINI_API_KEY", FALLBACK_KEY)
+API_KEY = st.secrets.get("GEMINI_API_KEY", FALLBACK_KEY).strip()
 
 # Custom Clean Styling
 st.markdown("""
@@ -68,7 +68,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. DIRECT REST API ENGINE (AQ & AIza Key Compatible)
+# 2. FIXED REST API ENGINE (Clean Single-Header Auth)
 # -------------------------------------------------------------
 SYSTEM_INSTRUCTIONS = """
 Aap aik All-in-One Executive AI Phone Copilot hain jo user ke sath Roman Urdu mein direct baat karta hai.
@@ -82,32 +82,37 @@ Phone Action Rules:
 """
 
 def generate_ai_response(prompt_text):
-    models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": API_KEY
+    }
+    
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": SYSTEM_INSTRUCTIONS}]
+        },
+        "contents": [
+            {"role": "user", "parts": [{"text": prompt_text}]}
+        ]
+    }
+    
+    last_err = ""
     for model_name in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": API_KEY
-        }
-        payload = {
-            "system_instruction": {
-                "parts": [{"text": SYSTEM_INSTRUCTIONS}]
-            },
-            "contents": [
-                {"role": "user", "parts": [{"text": prompt_text}]}
-            ]
-        }
-        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         try:
             res = requests.post(url, headers=headers, json=payload, timeout=20)
             if res.status_code == 200:
                 data = res.json()
                 return data["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception:
+            else:
+                last_err = f"Status {res.status_code}: {res.text}"
+        except Exception as e:
+            last_err = str(e)
             continue
             
-    return "API se rabta nahi ho saka. Baraye meherbani internet connection check karein."
+    return f"Rabta nahi ho saka: {last_err}"
 
 # -------------------------------------------------------------
 # 3. MACRODROID PHONE CONTROLLER
@@ -185,7 +190,7 @@ if user_input:
             st.markdown(f"""
             <div style="clear:both; padding-top:10px;">
                 <a href="{wa_url}" target="_blank" class="action-card">
-                    🚀 Click to Open WhatsApp ({action_data.get('phone', 'Chat')})
+                    🚀 Direct WhatsApp Kholein ({action_data.get('phone', 'Chat')})
                 </a>
             </div>
             """, unsafe_allow_html=True)
