@@ -6,65 +6,66 @@ import requests
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
-    page_title="AI Studio Hub",
-    page_icon="✨",
+    page_title="My Personal Copilot",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- MOBILE VIEWPORT & VISIBILITY CSS -----------------
+# ----------------- CLEAN MOBILE APP CSS -----------------
 st.markdown("""
 <style>
+    /* Full White Clean Mobile Look */
     .stApp {
-        background-color: #f8f9fa;
-        color: #1f1f1f;
+        background-color: #ffffff;
+        color: #111b21;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
-    /* Fixed Top Margin so nothing gets cut off */
     .block-container {
-        padding-top: 3.8rem !important;
-        padding-bottom: 7.5rem !important;
-        max-width: 850px;
+        padding-top: 2rem !important;
+        padding-bottom: 6.5rem !important;
+        max-width: 800px;
         margin: 0 auto;
     }
     
-    /* Clean Cards for Chat */
+    /* Clean Message Bubbles */
     [data-testid="stChatMessage"] {
-        background-color: #ffffff;
-        border-radius: 12px;
+        background-color: #f0f2f5;
+        border-radius: 16px;
         padding: 12px 16px;
-        margin-bottom: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        border: 1px solid #e3e7ed;
+        margin-bottom: 8px;
+        border: none;
     }
     
-    p, span, div, label {
-        color: #1f1f1f !important;
+    p, span, div {
+        color: #111b21 !important;
+        font-size: 15px;
     }
     
-    /* Pinned Bottom Chat Input */
+    /* Fixed Bottom Input */
     div[data-testid="stChatInput"] {
         position: fixed;
-        bottom: 10px;
+        bottom: 12px;
         z-index: 999;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# ----------------- SYSTEM PROMPT -----------------
 SYSTEM_INSTRUCTION = """
-You are a direct, hyper-practical Personal Copilot & Business Partner.
-1. Answer directly and concisely without moral lectures, disclaimers, or conversational fluff.
-2. Provide exact step-by-step solutions, code, calculations, and execution roadmaps.
-3. For dropshipping / products: Calculate exact cost, shipping, TikTok/Shopify ad spend, and net profit margins.
+You are a private, direct, and highly intelligent Personal Copilot & Business Partner.
+1. Answer directly and concisely without moral lectures, generic filler, or repetitive warnings.
+2. Provide exact solutions, business calculations, unit economics, and dropshipping profit margins.
+3. Analyze images, products, receipts, and documents with high precision.
 """
 
-# ----------------- SIDEBAR -----------------
+# ----------------- SIDEBAR (ONLY API KEY & RESET) -----------------
 with st.sidebar:
-    st.markdown("### ⚙️ **Studio Key**")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini API key")
+    st.markdown("### ⚙️ **Settings**")
+    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini key")
     
-    if st.button("🗑️ Clear Chat", use_container_width=True):
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -72,52 +73,20 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ----------------- MAIN TOP BAR (GOOGLE AI STUDIO STYLE) -----------------
-st.markdown("<h3 style='margin:0; color:#1a73e8; font-weight:700;'>✨ AI Studio Copilot</h3>", unsafe_allow_html=True)
+# ----------------- HEADER -----------------
+st.markdown("""
+<div style="text-align: center; margin-bottom: 1.2rem;">
+    <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">⚡ My Personal Copilot</h3>
+    <p style="color: #5f6368; font-size: 13px; margin-top: 3px;">24/7 Smart Autonomous Assistant</p>
+</div>
+""", unsafe_allow_html=True)
 
 if not api_key:
-    st.warning("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio API Key paste karein.")
+    st.info("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio Key paste karein.")
     st.stop()
 
 # Configure API
 genai.configure(api_key=api_key)
-
-# Dynamic Model Discovery with Latest Working Models
-@st.cache_data(show_spinner=False, ttl=300)
-def get_all_models(_key):
-    model_dict = {}
-    try:
-        models = genai.list_models()
-        for m in models:
-            if 'generateContent' in m.supported_generation_methods:
-                name = m.name.replace("models/", "")
-                # Exclude retired models
-                if "2.5-flash" in name:
-                    continue
-                tag = "⚡ Free Fast" if "flash" in name.lower() or "lite" in name.lower() else "💎 Pro"
-                model_dict[f"{name} ({tag})"] = m.name
-    except Exception:
-        pass
-    
-    if not model_dict:
-        model_dict = {
-            "gemini-3.6-flash (⚡ Free Fast)": "models/gemini-3.6-flash",
-            "gemini-3.8-flash (⚡ Free Fast)": "models/gemini-3.8-flash",
-            "gemini-3.7-flash (⚡ Free Fast)": "models/gemini-3.7-flash",
-            "gemini-3.5-flash-lite (⚡ Free Fast)": "models/gemini-3.5-flash-lite"
-        }
-    return model_dict
-
-available_models = get_all_models(api_key)
-
-# Top Bar Controls
-col_model, col_mode = st.columns([2, 2])
-with col_model:
-    selected_label = st.selectbox("🤖 Model Selection", list(available_models.keys()), index=0)
-    selected_model_id = available_models[selected_label]
-
-with col_mode:
-    mode = st.selectbox("🎯 Mode", ["💬 Chat & Business", "🎨 Photo Generator", "📊 Profit & Sourcing Math"])
 
 SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -126,6 +95,7 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
 }
 
+# Image helper
 def generate_image(prompt):
     return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
 
@@ -137,25 +107,28 @@ for msg in st.session_state.messages:
             st.image(msg["image"], use_container_width=True)
 
 # ----------------- ATTACHMENT BOX -----------------
-with st.expander("📎 Photo / Document Attach Karein", expanded=False):
-    uploaded_file = st.file_uploader("Upload Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
+with st.expander("📎 Photo / Document Attach Karein (Camera / Gallery)", expanded=False):
+    uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
 
-# ----------------- BOTTOM INPUT -----------------
-user_prompt = st.chat_input("Message your Copilot...")
+# ----------------- BOTTOM CHAT INPUT -----------------
+user_prompt = st.chat_input("Apna task, sawal ya photo prompt likhein...")
 
-# ----------------- EXECUTION LOGIC -----------------
+# ----------------- AUTO-FALLBACK ENGINE -----------------
 if user_prompt or uploaded_file:
-    if mode == "🎨 Photo Generator" and user_prompt:
-        st.session_state.messages.append({"role": "user", "content": f"🎨 {user_prompt}"})
+    # 1. Image Generation Check
+    if user_prompt and (user_prompt.lower().startswith("photo:") or user_prompt.lower().startswith("image:") or user_prompt.lower().startswith("generate:")):
+        clean_prompt = user_prompt.split(":", 1)[1].strip() if ":" in user_prompt else user_prompt
+        st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
-            st.markdown(f"🎨 {user_prompt}")
+            st.markdown(user_prompt)
             
         with st.chat_message("assistant"):
-            with st.spinner("Generating photo..."):
-                img_url = generate_image(user_prompt)
+            with st.spinner("Photo ban rahi hai..."):
+                img_url = generate_image(clean_prompt)
                 st.image(img_url, use_container_width=True)
                 st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
 
+    # 2. General Chat / Analysis / Dropshipping
     elif user_prompt:
         input_data = []
         pil_image = None
@@ -164,11 +137,7 @@ if user_prompt or uploaded_file:
             pil_image = Image.open(uploaded_file)
             input_data.append(pil_image)
             
-        final_prompt = user_prompt
-        if mode == "📊 Profit & Sourcing Math":
-            final_prompt = f"[TASK: Calculate Exact Unit Economics, Ad Spend & Profit]\n{user_prompt}"
-            
-        input_data.append(final_prompt)
+        input_data.append(user_prompt)
         
         st.session_state.messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
@@ -178,15 +147,33 @@ if user_prompt or uploaded_file:
                 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
+                # Dynamically tries models until a working one responds
+                response_text = None
+                models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-pro"]
+                
+                # Also check all available live models from user's key
                 try:
-                    model = genai.GenerativeModel(
-                        model_name=selected_model_id,
-                        system_instruction=SYSTEM_INSTRUCTION,
-                        safety_settings=SAFETY_SETTINGS
-                    )
-                    response = model.generate_content(input_data)
-                    output_text = response.text
-                    st.markdown(output_text)
-                    st.session_state.messages.append({"role": "assistant", "content": output_text})
-                except Exception as e:
-                    st.error(f"Error ({selected_model_id}): {str(e)}")
+                    live_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    models_to_try = live_models + models_to_try
+                except Exception:
+                    pass
+
+                for model_name in models_to_try:
+                    try:
+                        m = genai.GenerativeModel(
+                            model_name=model_name,
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            safety_settings=SAFETY_SETTINGS
+                        )
+                        res = m.generate_content(input_data)
+                        if res and res.text:
+                            response_text = res.text
+                            break
+                    except Exception:
+                        continue
+                
+                if response_text:
+                    st.markdown(response_text)
+                    st.session_state.messages.append({"role": "assistant", "content": response_text})
+                else:
+                    st.error("Error: Key connect nahi ho saki. Please Google AI Studio se 'Gemini API Key 2' check karein.")
