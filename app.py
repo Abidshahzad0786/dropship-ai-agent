@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import json
 import re
@@ -73,33 +74,61 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SMART INTENT DETECTOR & AI ENGINE
+# 2. AUTO-ACTION INTENT DETECTOR
 # -------------------------------------------------------------
-def detect_action_locally(user_text):
-    """User ke bolte hi foran action detect karta hai baghair kisi delay ke"""
+def detect_action_and_reply(user_text):
     t = user_text.lower()
     
-    # Facebook
+    # 1. Facebook
     if "facebook" in t or "fb" in t:
-        return {"action": "open_app", "app": "facebook", "url": "https://www.facebook.com", "label": "🔵 Open Facebook"}
+        return {
+            "action": "open_app",
+            "url": "https://www.facebook.com",
+            "label": "🔵 Facebook Khol Diya Gaya Hai",
+            "reply": "Ji zaroor, main aapke mobile par Facebook open kar raha hoon!",
+            "btn_class": "action-btn fb-btn"
+        }
     
-    # YouTube
+    # 2. YouTube
     if "youtube" in t or "yt" in t:
-        return {"action": "open_app", "app": "youtube", "url": "https://www.youtube.com", "label": "🔴 Open YouTube"}
+        return {
+            "action": "open_app",
+            "url": "https://www.youtube.com",
+            "label": "🔴 YouTube Khol Diya Gaya Hai",
+            "reply": "YouTube open ho raha hai, aap jo dekhna chahein enjoy karein!",
+            "btn_class": "action-btn yt-btn"
+        }
         
-    # TikTok
+    # 3. TikTok
     if "tiktok" in t:
-        return {"action": "open_app", "app": "tiktok", "url": "https://www.tiktok.com", "label": "🎵 Open TikTok"}
+        return {
+            "action": "open_app",
+            "url": "https://www.tiktok.com",
+            "label": "🎵 TikTok Khol Diya Gaya Hai",
+            "reply": "TikTok launch kiya ja raha hai!",
+            "btn_class": "action-btn"
+        }
         
-    # WhatsApp Detection
-    if "whatsapp" in t or "message" in t or "sms" in t:
-        # Extract numbers if present
+    # 4. WhatsApp Automation
+    if "whatsapp" in t or "sms" in t or "message" in t:
         nums = re.findall(r'\b\d{10,13}\b', t)
         phone = nums[0] if nums else ""
-        # Clean text
-        clean_msg = re.sub(r'(whatsapp|karo|bhejo|message|sms|ko|par|per)', '', t, flags=re.IGNORECASE).strip()
+        
+        # Name detection
+        clean_msg = t
+        for word in ["whatsapp", "kholo", "karo", "bhejo", "message", "sms", "ko", "par", "per", "open", "send"]:
+            clean_msg = re.sub(r'\b' + word + r'\b', '', clean_msg, flags=re.IGNORECASE)
+        clean_msg = clean_msg.strip()
+        
         wa_url = f"https://api.whatsapp.com/send?phone={phone}&text={urllib.parse.quote(clean_msg)}" if phone else f"https://api.whatsapp.com/send?text={urllib.parse.quote(clean_msg)}"
-        return {"action": "whatsapp", "phone": phone, "text": clean_msg, "url": wa_url, "label": f"🟢 Open WhatsApp ({phone if phone else 'Direct'})"}
+        
+        return {
+            "action": "whatsapp",
+            "url": wa_url,
+            "label": f"🟢 WhatsApp Khol Diya Gaya Hai",
+            "reply": f"Theek hai, main WhatsApp khol kar message ready kar raha hoon!",
+            "btn_class": "action-btn"
+        }
 
     return None
 
@@ -112,34 +141,29 @@ def generate_ai_response(prompt_text):
             return res.text.strip()
     except Exception:
         pass
-    return "Ji bilkul, main aapki command par foran amal kar raha hoon!"
+    return "Main aapke mobile ka Copilot hoon. Batayein WhatsApp, Facebook ya koi aur app kholni hai?"
 
 # -------------------------------------------------------------
-# 3. MACRODROID PHONE CONTROLLER
+# 3. MACRODROID DISPATCHER
 # -------------------------------------------------------------
-def trigger_phone_action(action_type, phone="", text="", app_name=""):
+def trigger_phone_action(action_url):
     try:
-        params = {
-            "action": str(action_type),
-            "phone": str(phone),
-            "text": str(text),
-            "app": str(app_name)
-        }
-        res = requests.get(MACRODROID_URL, params=params, timeout=4)
-        return True if res.status_code == 200 else False
+        params = {"url": str(action_url)}
+        requests.get(MACRODROID_URL, params=params, timeout=3)
     except Exception:
-        return False
+        pass
 
 # -------------------------------------------------------------
 # 4. UI & CHAT INTERFACE
 # -------------------------------------------------------------
-st.markdown("<div class='main-header'><h2>🤖 My AI Phone Copilot</h2><p style='color:#6B7280;'>Live Phone & Apps Controller</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='main-header'><h2>🤖 My AI Phone Copilot</h2><p style='color:#6B7280;'>Live Auto-Open Phone Controller</p></div>", unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Copilot hoon. WhatsApp, Facebook, YouTube ya koi bhi app khulwane ke liye bolein."}
+        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Phone Copilot hoon. WhatsApp, Facebook, YouTube ya koi bhi app khulwane ke liye bolein."}
     ]
 
+# Display Messages
 for msg in st.session_state.messages:
     role = msg["role"]
     content = msg["content"]
@@ -150,45 +174,50 @@ for msg in st.session_state.messages:
     else:
         st.markdown(f"<div class='chat-bubble-ai'>🤖 {content}</div>", unsafe_allow_html=True)
         if action_info:
-            btn_class = "action-btn fb-btn" if "facebook" in action_info.get("app", "") else ("action-btn yt-btn" if "youtube" in action_info.get("app", "") else "action-btn")
             st.markdown(f"""
             <div style="clear:both; padding-top:6px; margin-bottom:10px;">
-                <a href="{action_info['url']}" target="_blank" class="{btn_class}">
+                <a href="{action_info['url']}" target="_blank" class="{action_info['btn_class']}">
                     {action_info['label']}
                 </a>
             </div>
             """, unsafe_allow_html=True)
 
-user_input = st.chat_input("Bol kar ya likh kar command dein (e.g. Facebook kholo, WhatsApp par message karo)...")
+user_input = st.chat_input("Bol kar ya likh kar command dein (e.g. Facebook kholo, Ghulam Rasool ko WhatsApp karo)...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.markdown(f"<div class='chat-bubble-user'>👤 {user_input}</div>", unsafe_allow_html=True)
 
-    # 1. Direct Instant Action Detection
-    action = detect_action_locally(user_input)
+    # 1. Action & Instant Auto-Open Detection
+    action = detect_action_and_reply(user_input)
+    
     if action:
-        trigger_phone_action(
-            action_type=action.get("action", "open_app"),
-            phone=action.get("phone", ""),
-            text=action.get("text", ""),
-            app_name=action.get("app", "")
-        )
+        ai_reply = action["reply"]
+        trigger_phone_action(action["url"])
+    else:
+        with st.spinner("AI reply tayyar kar raha hai..."):
+            ai_reply = generate_ai_response(user_input)
 
-    # 2. Generate AI Response
-    with st.spinner("AI action execute kar raha hai..."):
-        ai_reply = generate_ai_response(user_input)
-        
-        st.markdown(f"<div class='chat-bubble-ai'>🤖 {ai_reply}</div>", unsafe_allow_html=True)
-        
-        if action:
-            btn_class = "action-btn fb-btn" if "facebook" in action.get("app", "") else ("action-btn yt-btn" if "youtube" in action.get("app", "") else "action-btn")
-            st.markdown(f"""
-            <div style="clear:both; padding-top:6px; margin-bottom:10px;">
-                <a href="{action['url']}" target="_blank" class="{btn_class}">
-                    {action['label']}
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
+    # Display AI Response
+    st.markdown(f"<div class='chat-bubble-ai'>🤖 {ai_reply}</div>", unsafe_allow_html=True)
 
-        st.session_state.messages.append({"role": "assistant", "content": ai_reply, "action_info": action})
+    # 2. AUTO-OPEN JAVASCRIPT ENGINE (Baghair Click Kiye Khud Khulega)
+    if action:
+        st.markdown(f"""
+        <div style="clear:both; padding-top:6px; margin-bottom:10px;">
+            <a href="{action['url']}" id="auto-link" target="_blank" class="{action['btn_class']}">
+                {action['label']}
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Automatic redirect / popup trigger
+        components.html(f"""
+        <script>
+            setTimeout(function() {{
+                window.open("{action['url']}", "_blank");
+            }}, 400);
+        </script>
+        """, height=0, width=0)
+
+    st.session_state.messages.append({"role": "assistant", "content": ai_reply, "action_info": action})
