@@ -3,33 +3,30 @@ import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from PIL import Image
 import requests
+import streamlit.components.v1 as components
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
-    page_title="My Personal Copilot",
-    page_icon="⚡",
+    page_title="Personal Copilot",
+    page_icon="🎙️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- CLEAN MOBILE APP CSS -----------------
+# ----------------- MOBILE APP LOOK & VOICE CSS -----------------
 st.markdown("""
 <style>
-    /* Full White Clean Mobile Look */
     .stApp {
         background-color: #ffffff;
         color: #111b21;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    
     .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 6.5rem !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 7rem !important;
         max-width: 800px;
         margin: 0 auto;
     }
-    
-    /* Clean Message Bubbles */
     [data-testid="stChatMessage"] {
         background-color: #f0f2f5;
         border-radius: 16px;
@@ -37,13 +34,10 @@ st.markdown("""
         margin-bottom: 8px;
         border: none;
     }
-    
     p, span, div {
         color: #111b21 !important;
         font-size: 15px;
     }
-    
-    /* Fixed Bottom Input */
     div[data-testid="stChatInput"] {
         position: fixed;
         bottom: 12px;
@@ -52,15 +46,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- SYSTEM PROMPT -----------------
 SYSTEM_INSTRUCTION = """
-You are a private, direct, and highly intelligent Personal Copilot & Business Partner.
-1. Answer directly and concisely without moral lectures, generic filler, or repetitive warnings.
-2. Provide exact solutions, business calculations, unit economics, and dropshipping profit margins.
-3. Analyze images, products, receipts, and documents with high precision.
+You are a direct, professional, and friendly Personal Copilot & eCommerce Partner.
+Rules:
+1. ONLY output the final direct response in natural language (Roman Urdu/English).
+2. NEVER output your inner reasoning, thought process, or bullet breakdowns of the prompt.
+3. Be helpful, concise, and provide exact calculations and solutions immediately.
 """
 
-# ----------------- SIDEBAR (ONLY API KEY & RESET) -----------------
+# ----------------- SIDEBAR -----------------
 with st.sidebar:
     st.markdown("### ⚙️ **Settings**")
     api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini key")
@@ -69,15 +63,14 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# ----------------- SESSION STATE -----------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ----------------- HEADER -----------------
 st.markdown("""
-<div style="text-align: center; margin-bottom: 1.2rem;">
-    <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">⚡ My Personal Copilot</h3>
-    <p style="color: #5f6368; font-size: 13px; margin-top: 3px;">24/7 Smart Autonomous Assistant</p>
+<div style="text-align: center; margin-bottom: 1rem;">
+    <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">🎙️ My Personal Pocket Copilot</h3>
+    <p style="color: #5f6368; font-size: 13px; margin-top: 2px;">Voice | Vision | Autonomous Assistant</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -95,7 +88,6 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
 }
 
-# Image helper
 def generate_image(prompt):
     return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
 
@@ -106,16 +98,21 @@ for msg in st.session_state.messages:
         if "image" in msg:
             st.image(msg["image"], use_container_width=True)
 
-# ----------------- ATTACHMENT BOX -----------------
-with st.expander("📎 Photo / Document Attach Karein (Camera / Gallery)", expanded=False):
-    uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
+# ----------------- ATTACHMENT & VOICE TOOLS -----------------
+col_att, col_v = st.columns([1, 1])
+with col_att:
+    with st.expander("📎 Photo / Document", expanded=False):
+        uploaded_file = st.file_uploader("Upload Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
+with col_v:
+    with st.expander("🎙️ Voice Command (Audio)", expanded=False):
+        audio_file = st.audio_input("Mic dabayein aur bolein")
 
 # ----------------- BOTTOM CHAT INPUT -----------------
-user_prompt = st.chat_input("Apna task, sawal ya photo prompt likhein...")
+user_prompt = st.chat_input("Apna task likhein ya mic use karein...")
 
-# ----------------- AUTO-FALLBACK ENGINE -----------------
-if user_prompt or uploaded_file:
-    # 1. Image Generation Check
+# ----------------- EXECUTION LOGIC -----------------
+if user_prompt or uploaded_file or audio_file:
+    # 1. Image Generation
     if user_prompt and (user_prompt.lower().startswith("photo:") or user_prompt.lower().startswith("image:") or user_prompt.lower().startswith("generate:")):
         clean_prompt = user_prompt.split(":", 1)[1].strip() if ":" in user_prompt else user_prompt
         st.session_state.messages.append({"role": "user", "content": user_prompt})
@@ -128,30 +125,42 @@ if user_prompt or uploaded_file:
                 st.image(img_url, use_container_width=True)
                 st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
 
-    # 2. General Chat / Analysis / Dropshipping
-    elif user_prompt:
+    # 2. Text, Photo, or Voice Processing
+    else:
         input_data = []
         pil_image = None
         
+        # Add Image if uploaded
         if uploaded_file:
             pil_image = Image.open(uploaded_file)
             input_data.append(pil_image)
             
-        input_data.append(user_prompt)
-        
-        st.session_state.messages.append({"role": "user", "content": user_prompt})
+        # Add Voice Audio if recorded
+        if audio_file:
+            audio_bytes = audio_file.read()
+            input_data.append({"mime_type": "audio/wav", "data": audio_bytes})
+            input_data.append("Is audio voice command ko suno aur iska mukammal jawab ya task execute karo.")
+
+        # Add Text if provided
+        if user_prompt:
+            input_data.append(user_prompt)
+            display_text = user_prompt
+        elif audio_file:
+            display_text = "🎙️ [Voice Note Sent]"
+        else:
+            display_text = "📎 [Photo Sent]"
+
+        st.session_state.messages.append({"role": "user", "content": display_text})
         with st.chat_message("user"):
-            st.markdown(user_prompt)
+            st.markdown(display_text)
             if pil_image:
                 st.image(pil_image, width=280)
                 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                # Dynamically tries models until a working one responds
+            with st.spinner("Thinking & Processing..."):
                 response_text = None
                 models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-pro"]
                 
-                # Also check all available live models from user's key
                 try:
                     live_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
                     models_to_try = live_models + models_to_try
@@ -176,4 +185,4 @@ if user_prompt or uploaded_file:
                     st.markdown(response_text)
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                 else:
-                    st.error("Error: Key connect nahi ho saki. Please Google AI Studio se 'Gemini API Key 2' check karein.")
+                    st.error("Error: Connect nahi ho saka. Key check karein.")
