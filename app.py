@@ -106,13 +106,13 @@ app_mode = st.radio(
 st.markdown("---")
 
 # ==============================================================================
-# 1. LIVE VOICE CALL MODE (REAL-TIME CONVERSATION)
+# 1. LIVE VOICE CALL MODE (FIXED MULTI-MODEL FALLBACK)
 # ==============================================================================
 if app_mode == "📞 Live Voice Call (Real-Time Talk)":
     st.markdown("""
     <div style="text-align: center; margin-top: 1rem; margin-bottom: 1.5rem;">
         <h3 style="color: #0b57d0; margin: 0; font-weight: 700;">📞 Live Voice Call</h3>
-        <p style="color: #5f6368; font-size: 14px;">Bina ruke aam phone call ki tarah baat karein</p>
+        <p style="color: #5f6368; font-size: 14px;">Mic dabayein aur direct bolna shuru karein</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -171,19 +171,30 @@ if app_mode == "📞 Live Voice Call (Real-Time Talk)":
                 document.getElementById('statusText').innerText = "⏳ Soch raha hoon...";
                 document.getElementById('statusText').style.color = "#d97706";
 
-                try {{
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${{apiKey}}`, {{
-                        method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{
-                            contents: [{{ parts: [{{ text: userSaid }}] }}],
-                            systemInstruction: {{ parts: [{{ text: "You are a real-time spoken voice partner. Reply ONLY in 1-2 short, direct sentences in easy Roman Urdu. No bullet points or reasoning." }}] }}
-                        }})
-                    }});
-                    const data = await res.json();
-                    let replyText = data.candidates[0].content.parts[0].text.trim();
-                    replyText = replyText.replace(/[*_#]/g, '');
+                const modelList = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-1.5-flash"];
+                let replyText = "";
 
+                for (let m of modelList) {{
+                    try {{
+                        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${{m}}:generateContent?key=${{apiKey}}`, {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                contents: [{{ parts: [{{ text: userSaid }}] }}],
+                                systemInstruction: {{ parts: [{{ text: "You are a real-time conversational phone partner. Reply ONLY in 1-2 short, direct sentences in easy Roman Urdu. Never use Hindi Devanagari script or bullet points." }}] }}
+                            }})
+                        }});
+                        const data = await res.json();
+                        if (data.candidates && data.candidates[0].content.parts[0].text) {{
+                            replyText = data.candidates[0].content.parts[0].text.trim().replace(/[*_#]/g, '');
+                            break;
+                        }}
+                    }} catch (e) {{
+                        continue;
+                    }}
+                }}
+
+                if (replyText) {{
                     document.getElementById('liveTranscript').innerHTML += "<br><br><b style='color:#0b57d0;'>AI:</b> " + replyText;
                     document.getElementById('statusText').innerText = "🔊 Bol raha hoon...";
                     document.getElementById('statusText').style.color = "#0b57d0";
@@ -199,9 +210,11 @@ if app_mode == "📞 Live Voice Call (Real-Time Talk)":
                         }}
                     }};
                     window.speechSynthesis.speak(utterance);
-
-                }} catch (err) {{
-                    document.getElementById('statusText').innerText = "⚠️ Error: Connection issue";
+                }} else {{
+                    document.getElementById('statusText').innerText = "⚠️ Model response nahi de saka, dobara bolein.";
+                    if (isCalling) {{
+                        setTimeout(() => {{ try {{ recognition.start(); }} catch(err){{}} }}, 1500);
+                    }}
                 }}
             }};
 
@@ -234,7 +247,7 @@ if app_mode == "📞 Live Voice Call (Real-Time Talk)":
     components.html(live_call_html, height=360)
 
 # ==============================================================================
-# 2. STANDARD TEXT & PHOTO CHAT MODE (FIXED INFINITE LOOP)
+# 2. STANDARD TEXT & PHOTO CHAT MODE
 # ==============================================================================
 else:
     if "messages" not in st.session_state:
@@ -242,19 +255,16 @@ else:
     if "last_audio_hash" not in st.session_state:
         st.session_state.last_audio_hash = None
 
-    # Display History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if "image" in msg:
                 st.image(msg["image"], use_container_width=True)
 
-    # Media Uploader
     uploaded_file = st.file_uploader("📎 Photo ya Document Attach Karein", type=["png", "jpg", "jpeg", "webp"])
     audio_file = st.audio_input("🎙️ Voice Note Record Karein")
     user_prompt = st.chat_input("Message likhein...")
 
-    # Audio deduplication logic
     is_new_audio = False
     audio_bytes_data = None
     if audio_file:
@@ -299,11 +309,20 @@ else:
 
             with st.chat_message("assistant"):
                 with st.spinner("Processing..."):
-                    try:
-                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION, safety_settings=SAFETY_SETTINGS)
-                        res = model.generate_content(input_data)
-                        output_text = extract_clean_text(res.text)
-                        st.markdown(output_text)
-                        st.session_state.messages.append({"role": "assistant", "content": output_text})
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-1.5-flash"]
+                    res_text = None
+                    for m_name in models_to_try:
+                        try:
+                            model = genai.GenerativeModel(m_name, system_instruction=SYSTEM_INSTRUCTION, safety_settings=SAFETY_SETTINGS)
+                            res = model.generate_content(input_data)
+                            if res and res.text:
+                                res_text = extract_clean_text(res.text)
+                                break
+                        except Exception:
+                            continue
+
+                    if res_text:
+                        st.markdown(res_text)
+                        st.session_state.messages.append({"role": "assistant", "content": res_text})
+                    else:
+                        st.error("Error: Connect nahi ho saka.")
