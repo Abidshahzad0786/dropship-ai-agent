@@ -6,66 +6,80 @@ import requests
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
-    page_title="AI Copilot",
-    page_icon="💬",
+    page_title="AI Studio Copilot",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- WHATSAPP / SMS STYLE MOBILE CSS -----------------
+# ----------------- GOOGLE AI STUDIO CLEAN LIGHT THEME -----------------
 st.markdown("""
 <style>
-    /* Clean background & spacing */
+    /* Main Clean Light Background */
     .stApp {
-        background-color: #0e1621;
-        color: #ffffff;
+        background-color: #f8f9fa;
+        color: #1f1f1f;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    /* Hide top padding */
+    
+    /* Clean Chat Containers */
     .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 5rem;
+        padding-top: 1.2rem;
+        padding-bottom: 6rem;
+        max-width: 900px;
     }
-    /* Chat message bubble styling */
-    .stChatMessage {
-        border-radius: 14px;
-        padding: 8px 12px;
-        margin-bottom: 8px;
+    
+    /* Google AI Studio Style Message Bubbles */
+    [data-testid="stChatMessage"] {
+        background-color: #ffffff;
+        border: 1px solid #e3e7ed;
+        border-radius: 16px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        color: #1f1f1f;
     }
-    /* Fixed bottom input bar */
+    
+    /* Make text super sharp and visible */
+    p, span, label, div {
+        color: #1f1f1f !important;
+        font-size: 15px;
+    }
+
+    /* Fixed Bottom Input Bar */
     div[data-testid="stChatInput"] {
         position: fixed;
-        bottom: 10px;
+        bottom: 12px;
         z-index: 999;
+    }
+    
+    div[data-testid="stChatInput"] > div {
+        background-color: #ffffff !important;
+        border: 1px solid #c4c7c5 !important;
+        border-radius: 28px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- DIRECT SYSTEM PROMPT -----------------
 SYSTEM_INSTRUCTION = """
-You are a direct, practical, and highly capable Personal Copilot & Business Partner.
-1. Answer directly and practically without moral lectures, generic filler, or repetitive warnings.
-2. Provide exact step-by-step solutions, code, calculations, and business insights.
+You are a direct, highly capable Personal Copilot & Business Partner.
+1. Answer directly, practically, and concisely without moral lectures, generic filler, or repetitive warnings.
+2. Provide exact step-by-step solutions, code, calculations, and strategies.
 3. For dropshipping / products: Calculate exact cost, shipping, TikTok/Shopify ad spend, and net margins.
 """
 
 # ----------------- SIDEBAR -----------------
 with st.sidebar:
-    st.subheader("⚙️ Settings")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Gemini API Key 2 yahan paste karein")
-    
-    # Default model is gemini-1.5-flash (Free & 100% working)
-    selected_model = st.selectbox(
-        "Model",
-        ["gemini-1.5-flash", "gemini-1.5-flash-latest"],
-        index=0
-    )
+    st.markdown("### ⚙️ **Studio Settings**")
+    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your API key here")
     
     mode = st.radio(
         "Mode",
         ["💬 Direct Chat & Business", "🎨 Photo Generator (AI)", "📊 Profit & Sourcing Math"]
     )
     
-    if st.button("🗑️ Clear Chat"):
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -74,16 +88,36 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ----------------- HEADER -----------------
-st.markdown("<h4 style='text-align: center; margin-bottom: 0;'>⚡ My Pocket Copilot</h4>", unsafe_allow_html=True)
-st.caption("<div style='text-align: center;'>24/7 Smart Autonomous Assistant</div>", unsafe_allow_html=True)
+st.markdown("""
+<div style="text-align: center; margin-bottom: 1.5rem;">
+    <h2 style="color: #1a73e8; margin: 0; font-weight: 600;">✨ AI Studio Copilot</h2>
+    <p style="color: #5f6368; font-size: 14px; margin-top: 4px;">Multimodal Autonomous Workspace</p>
+</div>
+""", unsafe_allow_html=True)
 
-# API Key check
 if not api_key:
-    st.warning("👈 Pehle sidebar (>> icon) khol kar apni Gemini API Key paste karein.")
+    st.info("👈 Pehle sidebar (>> icon) khol kar apni Google AI Studio API Key paste karein.")
     st.stop()
 
 # Configure API
 genai.configure(api_key=api_key)
+
+# Dynamic Model Finder (Avoids 404 permanently)
+@st.cache_resource(show_spinner=False)
+def get_best_model(_api_key):
+    try:
+        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        for pref in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
+            for m in available:
+                if pref in m:
+                    return m
+        if available:
+            return available[0]
+    except Exception:
+        pass
+    return "models/gemini-1.5-flash"
+
+ACTIVE_MODEL_NAME = get_best_model(api_key)
 
 SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -92,23 +126,22 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
 }
 
-# Image Gen Helper
 def generate_image(prompt):
     return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
 
-# Display Chat History
+# Display Messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "image" in msg:
             st.image(msg["image"], use_container_width=True)
 
-# ----------------- ATTACHMENT UPLOAD BAR (SMS Style) -----------------
-with st.expander("📎 Photo ya Document Attach Karein (Camera / Upload)", expanded=False):
-    uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
+# ----------------- SMS STYLE ATTACHMENT BOX -----------------
+with st.expander("📎 Attach Photo / File (Tap to open)", expanded=False):
+    uploaded_file = st.file_uploader("Upload Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
 
-# ----------------- BOTTOM CHAT INPUT BAR -----------------
-user_prompt = st.chat_input("Message...")
+# ----------------- BOTTOM INPUT BAR -----------------
+user_prompt = st.chat_input("Message your Copilot...")
 
 # ----------------- EXECUTION -----------------
 if user_prompt or uploaded_file:
@@ -118,7 +151,7 @@ if user_prompt or uploaded_file:
             st.markdown(f"🎨 {user_prompt}")
             
         with st.chat_message("assistant"):
-            with st.spinner("Photo generate ho rahi hai..."):
+            with st.spinner("Generating photo..."):
                 img_url = generate_image(user_prompt)
                 st.image(img_url, use_container_width=True)
                 st.session_state.messages.append({"role": "assistant", "content": "Photo tayar hai:", "image": img_url})
@@ -141,14 +174,13 @@ if user_prompt or uploaded_file:
         with st.chat_message("user"):
             st.markdown(user_prompt)
             if pil_image:
-                st.image(pil_image, width=260)
+                st.image(pil_image, width=280)
                 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
+            with st.spinner("Processing..."):
                 try:
-                    # Uses gemini-1.5-flash to completely avoid 404 errors
                     model = genai.GenerativeModel(
-                        model_name="gemini-1.5-flash",
+                        model_name=ACTIVE_MODEL_NAME,
                         system_instruction=SYSTEM_INSTRUCTION,
                         safety_settings=SAFETY_SETTINGS
                     )
