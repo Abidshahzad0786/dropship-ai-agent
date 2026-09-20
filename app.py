@@ -6,75 +6,105 @@ import requests
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
-    page_title="AI Studio Copilot",
-    page_icon="💬",
+    page_title="AI Studio Hub",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ----------------- WHATSAPP / AI STUDIO LIGHT THEME CSS -----------------
+# ----------------- MOBILE RESPONSIVE & KEYBOARD SCROLL CSS -----------------
 st.markdown("""
 <style>
-    /* Clean Light Background */
+    /* Main Background */
     .stApp {
-        background-color: #f0f2f5;
-        color: #111b21;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f8f9fa;
+        color: #1f1f1f;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
+    /* Auto Scroll & Chat Container */
     .block-container {
         padding-top: 1rem;
-        padding-bottom: 7rem;
+        padding-bottom: 7.5rem;
         max-width: 850px;
+        overflow-anchor: auto;
+        scroll-behavior: smooth;
     }
     
-    /* WhatsApp / AI Studio Style Message Bubble */
+    /* Clean Message Cards */
     [data-testid="stChatMessage"] {
         background-color: #ffffff;
-        border-radius: 12px;
-        padding: 10px 14px;
+        border-radius: 14px;
+        padding: 12px 16px;
         margin-bottom: 8px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-        border: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e3e7ed;
     }
     
-    /* Floating Bottom Action Bar */
-    .bottom-bar {
+    p, span, div {
+        color: #1f1f1f !important;
+    }
+    
+    /* Pinned Bottom Container */
+    div[data-testid="stChatInput"] {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #f0f2f5;
-        padding: 8px 16px 14px 16px;
-        border-top: 1px solid #e0e0e0;
+        bottom: 8px;
         z-index: 999;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        max-width: 850px;
-        margin: 0 auto;
     }
 </style>
 """, unsafe_allow_html=True)
 
 SYSTEM_INSTRUCTION = """
-You are a direct, highly capable Personal Copilot & Business Partner.
-1. Answer directly and practically without moral lectures, generic filler, or repetitive warnings.
-2. Provide exact step-by-step solutions, code, calculations, and strategies.
-3. For dropshipping / products: Calculate exact cost, shipping, TikTok/Shopify ad spend, and net margins.
+You are a direct, hyper-practical Personal Copilot & Business Partner.
+1. Answer directly and concisely without moral lectures, generic filler, or repetitive warnings.
+2. Provide exact step-by-step solutions, code, calculations, and execution roadmaps.
+3. For dropshipping / products: Calculate exact cost, shipping, TikTok/Shopify ad spend, and net profit margins.
 """
 
 # ----------------- SIDEBAR -----------------
 with st.sidebar:
-    st.subheader("⚙️ Settings")
-    api_key = st.text_input("Google AI Studio API Key", type="password", help="Paste your Gemini API key")
+    st.markdown("### ⚙️ **AI Studio Settings**")
+    api_key = st.text_input("Google AI Studio API Key", type="password", help="Enter your Gemini API key")
     
+    # Live Model Fetching Function
+    @st.cache_data(show_spinner=False, ttl=600)
+    def fetch_live_models(_key):
+        model_options = {}
+        try:
+            genai.configure(api_key=_key)
+            models = genai.list_models()
+            for m in models:
+                if 'generateContent' in m.supported_generation_methods:
+                    clean_name = m.name.replace("models/", "")
+                    if "flash" in clean_name.lower() or "lite" in clean_name.lower():
+                        display_name = f"⚡ {clean_name} (Free Fast)"
+                    else:
+                        display_name = f"💎 {clean_name} (Pro / Advanced)"
+                    model_options[display_name] = m.name
+        except Exception:
+            pass
+        if not model_options:
+            model_options = {
+                "⚡ gemini-3.8-flash (Free Fast)": "models/gemini-3.8-flash",
+                "⚡ gemini-3.7-flash (Free Fast)": "models/gemini-3.7-flash",
+                "💎 gemini-3.1-pro-preview (Pro)": "models/gemini-3.1-pro-preview"
+            }
+        return model_options
+
+    if api_key:
+        available_models = fetch_live_models(api_key)
+        selected_display = st.selectbox("🤖 Choose AI Model", list(available_models.keys()), index=0)
+        selected_model_id = available_models[selected_display]
+    else:
+        selected_model_id = "models/gemini-3.8-flash"
+
+    st.markdown("---")
     mode = st.radio(
-        "Mode",
+        "Task Mode",
         ["💬 Direct Chat & Business", "🎨 Photo Generator (AI)", "📊 Profit & Sourcing Math"]
     )
     
-    if st.button("🗑️ Clear Chat", use_container_width=True):
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -83,10 +113,10 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ----------------- HEADER -----------------
-st.markdown("""
+st.markdown(f"""
 <div style="text-align: center; margin-bottom: 1rem;">
-    <h3 style="color: #00a884; margin: 0; font-weight: 700;">✨ AI Studio Copilot</h3>
-    <p style="color: #667781; font-size: 13px; margin-top: 2px;">24/7 Autonomous Assistant</p>
+    <h3 style="color: #1a73e8; margin: 0; font-weight: 700;">✨ AI Studio Copilot</h3>
+    <p style="color: #5f6368; font-size: 13px; margin-top: 2px;">Model: <b>{selected_model_id.replace('models/', '')}</b></p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -107,23 +137,20 @@ SAFETY_SETTINGS = {
 def generate_image(prompt):
     return f"https://image.pollinations.ai/prompt/{prompt}?width=1024&height=1024&nologo=true"
 
-# Display Chat History
+# Display Messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "image" in msg:
             st.image(msg["image"], use_container_width=True)
 
-# ----------------- WHATSAPP STYLE ATTACHMENT + SMS BAR -----------------
-col_attach, col_input = st.columns([1, 4])
+# ----------------- ATTACHMENT & INPUT (MOBILE BOTTOM PINNED) -----------------
+with st.expander("📎 Attach Photo / File (Tap to open)", expanded=False):
+    uploaded_file = st.file_uploader("Upload Media", type=["png", "jpg", "jpeg", "webp"], label_visibility="collapsed")
 
-with col_attach:
-    uploaded_file = st.file_uploader("📎", type=["png", "jpg", "jpeg", "webp"], help="Photo ya Document attach karein")
+user_prompt = st.chat_input("Message your Copilot...")
 
-with col_input:
-    user_prompt = st.chat_input("Message your Copilot...")
-
-# ----------------- EXECUTION LOGIC -----------------
+# ----------------- EXECUTION -----------------
 if user_prompt or uploaded_file:
     if mode == "🎨 Photo Generator (AI)" and user_prompt:
         st.session_state.messages.append({"role": "user", "content": f"🎨 {user_prompt}"})
@@ -157,24 +184,16 @@ if user_prompt or uploaded_file:
                 st.image(pil_image, width=280)
                 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                # Strictly try 100% Free Tier Flash models to avoid 429 quota block
-                success = False
-                for flash_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]:
-                    try:
-                        model = genai.GenerativeModel(
-                            model_name=flash_model,
-                            system_instruction=SYSTEM_INSTRUCTION,
-                            safety_settings=SAFETY_SETTINGS
-                        )
-                        response = model.generate_content(input_data)
-                        output_text = response.text
-                        st.markdown(output_text)
-                        st.session_state.messages.append({"role": "assistant", "content": output_text})
-                        success = True
-                        break
-                    except Exception as e:
-                        continue
-                
-                if not success:
-                    st.error("Error: Free Flash model connect nahi ho saka. AI Studio se 'Gemini API Key 2' check karein.")
+            with st.spinner("Processing..."):
+                try:
+                    model = genai.GenerativeModel(
+                        model_name=selected_model_id,
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        safety_settings=SAFETY_SETTINGS
+                    )
+                    response = model.generate_content(input_data)
+                    output_text = response.text
+                    st.markdown(output_text)
+                    st.session_state.messages.append({"role": "assistant", "content": output_text})
+                except Exception as e:
+                    st.error(f"Error ({selected_model_id}): {str(e)}")
