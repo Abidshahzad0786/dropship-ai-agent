@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import requests
 import json
 import re
@@ -51,173 +50,116 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         color: #1F2937;
     }
-    .action-btn {
-        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-        color: white !important;
-        padding: 12px 20px;
-        border-radius: 12px;
-        margin: 10px 0;
+    .status-badge {
+        background-color: #25D366;
+        color: white;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
         display: inline-block;
-        font-weight: 700;
-        text-decoration: none;
-        box-shadow: 0 4px 10px rgba(37,211,102,0.3);
-    }
-    .fb-btn {
-        background: linear-gradient(135deg, #1877F2 0%, #0D5AC1 100%);
-        box-shadow: 0 4px 10px rgba(24,119,242,0.3);
-    }
-    .yt-btn {
-        background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
-        box-shadow: 0 4px 10px rgba(255,0,0,0.3);
+        margin-top: 6px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. AUTO-ACTION INTENT DETECTOR
+# 2. SMART PARSER (Name & Message Extraction)
 # -------------------------------------------------------------
-def detect_action_and_reply(user_text):
+def parse_command(user_text):
     t = user_text.lower()
     
-    # 1. Facebook
+    # Check WhatsApp Business / WhatsApp
+    if any(k in t for k in ["whatsapp", "business", "wa", "sms", "message", "chat"]):
+        # Extract Name
+        name = ""
+        # Match patterns like "love name ka", "love ko", "ghulam rasool ko"
+        name_match = re.search(r'([a-zA-Z0-9_\s]+?)\s+(?:name|ko|ka|ki)\b', t)
+        if name_match:
+            candidate = name_match.group(1).strip()
+            # remove trigger words
+            for skip in ["whatsapp", "business", "main", "par", "per", "ok", "hi", "hello"]:
+                candidate = re.sub(r'\b' + skip + r'\b', '', candidate, flags=re.IGNORECASE).strip()
+            name = candidate
+            
+        # Extract Message
+        msg_match = re.search(r'(?:kaho|bolo|likho|send|sms|message)\s+(.*)', t)
+        msg_text = msg_match.group(1).strip() if msg_match else ""
+        
+        # If no explicit "kaho/bolo", take cleaned text
+        if not msg_text:
+            msg_text = t
+            for skip in ["whatsapp", "business", "main", "kholo", "on", "karo", "person", "hai", "dakho", "chat", name]:
+                msg_text = re.sub(r'\b' + skip + r'\b', '', msg_text, flags=re.IGNORECASE).strip()
+                
+        return {
+            "type": "whatsapp_name",
+            "name": name if name else "contact",
+            "text": msg_text,
+            "reply": f"Theek hai, main WhatsApp Business mein **'{name.capitalize()}'** ko search karke message send kar raha hoon!"
+        }
+        
+    # Facebook
     if "facebook" in t or "fb" in t:
-        return {
-            "action": "open_app",
-            "url": "https://www.facebook.com",
-            "label": "🔵 Facebook Khol Diya Gaya Hai",
-            "reply": "Ji zaroor, main aapke mobile par Facebook open kar raha hoon!",
-            "btn_class": "action-btn fb-btn"
-        }
-    
-    # 2. YouTube
+        return {"type": "open_app", "app": "facebook", "reply": "Facebook open kiya ja raha hai!"}
+        
+    # YouTube
     if "youtube" in t or "yt" in t:
-        return {
-            "action": "open_app",
-            "url": "https://www.youtube.com",
-            "label": "🔴 YouTube Khol Diya Gaya Hai",
-            "reply": "YouTube open ho raha hai, aap jo dekhna chahein enjoy karein!",
-            "btn_class": "action-btn yt-btn"
-        }
-        
-    # 3. TikTok
-    if "tiktok" in t:
-        return {
-            "action": "open_app",
-            "url": "https://www.tiktok.com",
-            "label": "🎵 TikTok Khol Diya Gaya Hai",
-            "reply": "TikTok launch kiya ja raha hai!",
-            "btn_class": "action-btn"
-        }
-        
-    # 4. WhatsApp Automation
-    if "whatsapp" in t or "sms" in t or "message" in t:
-        nums = re.findall(r'\b\d{10,13}\b', t)
-        phone = nums[0] if nums else ""
-        
-        # Name detection
-        clean_msg = t
-        for word in ["whatsapp", "kholo", "karo", "bhejo", "message", "sms", "ko", "par", "per", "open", "send"]:
-            clean_msg = re.sub(r'\b' + word + r'\b', '', clean_msg, flags=re.IGNORECASE)
-        clean_msg = clean_msg.strip()
-        
-        wa_url = f"https://api.whatsapp.com/send?phone={phone}&text={urllib.parse.quote(clean_msg)}" if phone else f"https://api.whatsapp.com/send?text={urllib.parse.quote(clean_msg)}"
-        
-        return {
-            "action": "whatsapp",
-            "url": wa_url,
-            "label": f"🟢 WhatsApp Khol Diya Gaya Hai",
-            "reply": f"Theek hai, main WhatsApp khol kar message ready kar raha hoon!",
-            "btn_class": "action-btn"
-        }
+        return {"type": "open_app", "app": "youtube", "reply": "YouTube open kiya ja raha hai!"}
 
     return None
 
-def generate_ai_response(prompt_text):
-    system_prompt = "Aap aik fast Roman Urdu Executive Mobile Assistant hain. Hamesha direct, mukhtasir aur friendly jawab dein."
+# -------------------------------------------------------------
+# 3. MACRODROID SENDER
+# -------------------------------------------------------------
+def send_to_macrodroid(params_dict):
     try:
-        url = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_text)}?system={urllib.parse.quote(system_prompt)}&model=openai"
-        res = requests.get(url, timeout=10)
-        if res.status_code == 200 and res.text.strip():
-            return res.text.strip()
+        requests.get(MACRODROID_URL, params=params_dict, timeout=4)
+        return True
     except Exception:
-        pass
-    return "Main aapke mobile ka Copilot hoon. Batayein WhatsApp, Facebook ya koi aur app kholni hai?"
+        return False
 
 # -------------------------------------------------------------
-# 3. MACRODROID DISPATCHER
+# 4. UI & CHAT ENGINE
 # -------------------------------------------------------------
-def trigger_phone_action(action_url):
-    try:
-        params = {"url": str(action_url)}
-        requests.get(MACRODROID_URL, params=params, timeout=3)
-    except Exception:
-        pass
-
-# -------------------------------------------------------------
-# 4. UI & CHAT INTERFACE
-# -------------------------------------------------------------
-st.markdown("<div class='main-header'><h2>🤖 My AI Phone Copilot</h2><p style='color:#6B7280;'>Live Auto-Open Phone Controller</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='main-header'><h2>🤖 My AI Phone Copilot</h2><p style='color:#6B7280;'>Live WhatsApp Business Contact Search</p></div>", unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Phone Copilot hoon. WhatsApp, Facebook, YouTube ya koi bhi app khulwane ke liye bolein."}
+        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Phone Copilot hoon. Aap kisi bhi saved contact ka naam lein, main direct WhatsApp Business mein search karke message bhej dunga."}
     ]
 
-# Display Messages
 for msg in st.session_state.messages:
     role = msg["role"]
     content = msg["content"]
-    action_info = msg.get("action_info")
-    
     if role == "user":
         st.markdown(f"<div class='chat-bubble-user'>👤 {content}</div>", unsafe_allow_html=True)
     else:
         st.markdown(f"<div class='chat-bubble-ai'>🤖 {content}</div>", unsafe_allow_html=True)
-        if action_info:
-            st.markdown(f"""
-            <div style="clear:both; padding-top:6px; margin-bottom:10px;">
-                <a href="{action_info['url']}" target="_blank" class="{action_info['btn_class']}">
-                    {action_info['label']}
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
 
-user_input = st.chat_input("Bol kar ya likh kar command dein (e.g. Facebook kholo, Ghulam Rasool ko WhatsApp karo)...")
+user_input = st.chat_input("Bol kar ya likh kar command dein (e.g. Love ko WhatsApp par bolo ok good night)...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.markdown(f"<div class='chat-bubble-user'>👤 {user_input}</div>", unsafe_allow_html=True)
 
-    # 1. Action & Instant Auto-Open Detection
-    action = detect_action_and_reply(user_input)
+    parsed = parse_command(user_input)
     
-    if action:
-        ai_reply = action["reply"]
-        trigger_phone_action(action["url"])
+    if parsed:
+        ai_reply = parsed["reply"]
+        if parsed["type"] == "whatsapp_name":
+            send_to_macrodroid({
+                "action": "search_whatsapp",
+                "name": parsed["name"],
+                "text": parsed["text"],
+                "app": "whatsapp_business"
+            })
+        elif parsed["type"] == "open_app":
+            send_to_macrodroid({
+                "action": "open_app",
+                "app": parsed["app"]
+            })
     else:
-        with st.spinner("AI reply tayyar kar raha hai..."):
-            ai_reply = generate_ai_response(user_input)
+        ai_reply = "Main aapke phone ka AI Copilot hoon. Batayein WhatsApp Business mein kis contact ko message bhejna hai?"
 
-    # Display AI Response
     st.markdown(f"<div class='chat-bubble-ai'>🤖 {ai_reply}</div>", unsafe_allow_html=True)
-
-    # 2. AUTO-OPEN JAVASCRIPT ENGINE (Baghair Click Kiye Khud Khulega)
-    if action:
-        st.markdown(f"""
-        <div style="clear:both; padding-top:6px; margin-bottom:10px;">
-            <a href="{action['url']}" id="auto-link" target="_blank" class="{action['btn_class']}">
-                {action['label']}
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Automatic redirect / popup trigger
-        components.html(f"""
-        <script>
-            setTimeout(function() {{
-                window.open("{action['url']}", "_blank");
-            }}, 400);
-        </script>
-        """, height=0, width=0)
-
-    st.session_state.messages.append({"role": "assistant", "content": ai_reply, "action_info": action})
+    st.session_state.messages.append({"role": "assistant", "content": ai_reply})
