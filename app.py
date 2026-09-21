@@ -30,7 +30,7 @@ st.markdown("""
     }
     .main .block-container {
         padding-top: 10px;
-        padding-bottom: 130px !important;
+        padding-bottom: 140px !important;
         max-width: 850px;
     }
     .chat-bubble-user {
@@ -70,15 +70,20 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(37,211,102,0.3);
     }
     
-    /* Perfect Native Bottom Input Bar Styling */
+    /* Pinned Bottom Single Row Container */
     div[data-testid="stChatInput"] {
-        padding-bottom: 10px !important;
+        padding-bottom: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
     }
     div[data-testid="stChatInput"] > div {
-        border-radius: 30px !important;
+        border-radius: 28px !important;
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+        flex: 1 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -105,7 +110,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced AI Executive Assistant hoon. Aap photo banwayein, business analysis karein, ya WhatsApp messages bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced AI Copilot hoon. Kisi bhi celebrity, product ki photo banwayein ya WhatsApp messages bhejein."}
         ]
     }
 
@@ -113,26 +118,54 @@ if "active_chat" not in st.session_state:
     st.session_state.active_chat = "Chat 1"
 
 # -------------------------------------------------------------
-# 3. ADVANCED AI REASONING & PROMPT ENHANCER
+# 3. ADVANCED MULTI-PERSON PROMPT & CELEBRITY ENGINE
 # -------------------------------------------------------------
-def enhance_image_prompt(raw_text):
-    """Insani dimaag ki tarah typos theek karke ultra-realistic photo prompt banana"""
-    sys_enhancer = (
-        "You are an expert AI photo prompt engineer. The user will give a photo request in Roman Urdu or English with potential typos (e.g. 'Alo Arjun' -> 'Allu Arjun'). "
-        "Expand this into a master-level, photorealistic, 8k cinematic English prompt. Include exact celebrity likeness if mentioned, realistic human facial textures, lighting, cinematic depth of field. "
-        "Output ONLY the final English prompt, nothing else."
-    )
+def smart_enhance_prompt(raw_text):
+    """Salman Khan, Allu Arjun, Kajal Aggarwal wagera ke multiple logon ko pehchan kar realistic prompt banana"""
+    t = raw_text.lower()
+    
+    # Celebrity knowledge base corrections
+    celeb_map = {
+        "slaman": "Salman Khan",
+        "salman": "Bollywood superstar Salman Khan",
+        "salman khan": "Bollywood superstar Salman Khan",
+        "alo arjun": "South Indian superstar Allu Arjun",
+        "allu arjun": "South Indian superstar Allu Arjun",
+        "kajal": "Indian actress Kajal Aggarwal",
+        "kajol": "Bollywood actress Kajol Devgan",
+        "katrina": "Bollywood actress Katrina Kaif",
+        "shahrukh": "Bollywood superstar Shah Rukh Khan"
+    }
+    
+    # Check if 2 people are mentioned (e.g. Salman Khan + Kajal)
+    found_people = []
+    for key, full_name in celeb_map.items():
+        if key in t:
+            if full_name not in found_people:
+                found_people.append(full_name)
+                
+    if len(found_people) >= 2:
+        return f"A realistic 8k photograph of {found_people[0]} standing together side by side with {found_people[1]}, posing together for a portrait, highly detailed authentic facial likeness, natural studio lighting, ultra-realistic textures, 8k resolution"
+    elif len(found_people) == 1:
+        clean = re.sub(r'(photo|image|tasweer|picture|banao|ki|sath|kay)', '', t).strip()
+        return f"A realistic 8k photograph portrait of {found_people[0]}, {clean}, highly detailed authentic facial likeness, sharp focus, cinematic lighting, photorealistic 8k"
+    
+    # Generic AI prompt enhancement
     try:
+        sys_enhancer = (
+            "You are an expert prompt engineer. Expand the user's image request into a highly detailed 8k English cinematic prompt. "
+            "Ensure correct celebrity identities, proper gender, realistic skin textures and lighting. Output ONLY the English prompt."
+        )
         url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enhancer)}&model=openai"
-        res = requests.get(url, timeout=7)
-        if res.status_code == 200 and len(res.text.strip()) > 10:
+        res = requests.get(url, timeout=6)
+        if res.status_code == 200 and len(res.text.strip()) > 15:
             return res.text.strip()
     except Exception:
         pass
-    return f"Photorealistic 8k portrait of {raw_text}, highly detailed face, authentic features, cinematic lighting, hyper-detailed"
+        
+    return f"Photorealistic 8k portrait of {raw_text}, high detail, authentic facial likeness, cinematic lighting"
 
 def generate_ai_response(conversation_history):
-    """Deep human-like reasoning with full conversational context"""
     sys_prompt = (
         "Aap aik highly intelligent, empathetic aur mature Executive AI Assistant hain. "
         "Aap Roman Urdu mein baat karte hain. Aap insano ki tarah gehra sochtay hain, context samajhte hain, aur be-tukkay ya robotic jawab nahi dete. "
@@ -140,13 +173,13 @@ def generate_ai_response(conversation_history):
     )
     try:
         messages_payload = [{"role": "system", "content": sys_prompt}]
-        for m in conversation_history[-6:]:  # Context of last 6 messages
+        for m in conversation_history[-6:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
             
         url = "https://text.pollinations.ai/openai"
         headers = {"Content-Type": "application/json"}
         payload = {"messages": messages_payload, "model": "openai"}
-        res = requests.post(url, headers=headers, json=payload, timeout=12)
+        res = requests.post(url, headers=headers, json=payload, timeout=10)
         if res.status_code == 200:
             return res.json()["choices"][0]["message"]["content"]
     except Exception:
@@ -166,14 +199,14 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 4. SIDEBAR (History & Multi-Chat)
+# 4. SIDEBAR (History & Photo Attachment)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 💬 Chat History")
     if st.button("➕ New Chat (Fresh Start)", use_container_width=True, type="primary"):
         new_id = f"Chat {len(st.session_state.chat_sessions) + 1} ({datetime.datetime.now().strftime('%H:%M')})"
         st.session_state.chat_sessions[new_id] = [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai. Batayein kya kaam karna hai?"}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai."}
         ]
         st.session_state.active_chat = new_id
         st.rerun()
@@ -185,10 +218,9 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    with st.expander("📎 Attach Photo to Modify", expanded=False):
-        up_file = st.file_uploader("Upload Image:", type=["jpg", "png", "jpeg"])
-        if up_file:
-            st.image(Image.open(up_file), caption="Attached Base Photo", use_container_width=True)
+    up_file = st.file_uploader("📎 Upload Image to Modify:", type=["jpg", "png", "jpeg"], key="sidebar_uploader")
+    if up_file:
+        st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
 # 5. CHAT MESSAGES DISPLAY
@@ -216,23 +248,56 @@ for msg in current_messages:
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. INTEGRATED SINGLE-LINE BOTTOM BAR & OUTLINE MIC INJECTION
+# 6. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
 # -------------------------------------------------------------
 components.html("""
 <script>
-    function injectBottomToolbar() {
+    function buildWhatsAppDock() {
         const inputContainer = parent.document.querySelector('div[data-testid="stChatInput"]');
-        if (!inputContainer || parent.document.getElementById('wa-single-bar')) return;
-        
-        inputContainer.id = 'wa-single-bar';
+        if (!inputContainer || parent.document.getElementById('wa-plus-btn')) return;
+
+        // 1. Clean Flex Layout (Single Row)
         inputContainer.style.display = 'flex';
+        inputContainer.style.flexDirection = 'row';
         inputContainer.style.alignItems = 'center';
-        inputContainer.style.gap = '6px';
+        inputContainer.style.gap = '8px';
+        inputContainer.style.padding = '8px 12px';
         inputContainer.style.background = 'transparent';
 
-        // Add Clean Minimalist Outline Mic Icon (Matching User Reference)
+        // 2. Add Plus (+) Attachment Button on the Left
+        const plusBtn = parent.document.createElement('button');
+        plusBtn.id = 'wa-plus-btn';
+        plusBtn.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+        `;
+        plusBtn.title = 'Attach Image';
+        plusBtn.style.width = '44px';
+        plusBtn.style.height = '44px';
+        plusBtn.style.borderRadius = '50%';
+        plusBtn.style.background = '#FFFFFF';
+        plusBtn.style.border = '1px solid #CBD5E1';
+        plusBtn.style.cursor = 'pointer';
+        plusBtn.style.display = 'flex';
+        plusBtn.style.alignItems = 'center';
+        plusBtn.style.justifyContent = 'center';
+        plusBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+        plusBtn.style.flexShrink = '0';
+        plusBtn.onclick = () => {
+            const fileInput = parent.document.querySelector('input[type="file"]');
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                alert('Left sidebar khol kar photo select karein.');
+            }
+        };
+
+        // 3. Add Outline Mic Button on the Right
         const micBtn = parent.document.createElement('button');
-        micBtn.id = 'studioMicBtn';
+        micBtn.id = 'wa-mic-btn';
         micBtn.innerHTML = `
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111B21" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
@@ -240,6 +305,7 @@ components.html("""
                 <line x1="12" y1="19" x2="12" y2="22"></line>
             </svg>
         `;
+        micBtn.title = 'Voice Input';
         micBtn.style.width = '44px';
         micBtn.style.height = '44px';
         micBtn.style.borderRadius = '50%';
@@ -289,11 +355,13 @@ components.html("""
             }
         };
 
+        // Insert Plus on Left and Mic on Right
+        inputContainer.insertBefore(plusBtn, inputContainer.firstChild);
         inputContainer.appendChild(micBtn);
     }
 
-    setTimeout(injectBottomToolbar, 300);
-    setInterval(injectBottomToolbar, 1000);
+    setTimeout(buildWhatsAppDock, 300);
+    setInterval(buildWhatsAppDock, 1000);
 </script>
 """, height=0, width=0)
 
@@ -309,16 +377,16 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # 1. Smart Photo Generation (With Human-like Thinking & Celebrity Realism)
+    # 1. Celebrity & Multi-Person Photo Generation
     if any(k in t for k in ["photo", "image", "tasweer", "picture", "banao", "genrate", "generate"]):
         clean_raw = re.sub(r'(photo|image|tasweer|picture|banao|genrate|generate|create|is ki)', '', user_input, flags=re.IGNORECASE).strip()
         
-        with st.spinner("AI gehra soch kar realistic photo design kar raha hai..."):
-            enhanced_prompt = enhance_image_prompt(clean_raw)
+        with st.spinner("AI celebrity aur dono logon ke naqoosh analyze karke photo design kar raha hai..."):
+            enhanced_prompt = smart_enhance_prompt(clean_raw)
             generated_img = generate_image_url(enhanced_prompt)
-            ai_reply = f"Maine **'{clean_raw}'** ke asal insani naqoosh samajh kar realistic studio image tayyar kar di hai:"
+            ai_reply = f"Maine **'{clean_raw}'** ke asal logon ko pehchan kar realistic photo tayyar kar di hai:"
 
-    # 2. WhatsApp Handling
+    # 2. WhatsApp Multi-Contact Handling
     elif any(k in t for k in ["whatsapp", "wa", "sms", "message", "kaho", "bolo", "chat"]):
         name_match = re.search(r'([a-zA-Z0-9_\s]+?)\s+(?:ko|par|per|kaho|bolo)\b', t)
         target_name = name_match.group(1).strip() if name_match else ""
