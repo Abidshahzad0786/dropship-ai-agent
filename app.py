@@ -1,10 +1,12 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import requests
+import os
+import sys
 import json
 import re
 import urllib.parse
 import datetime
+import requests
+import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image
 
 # -------------------------------------------------------------
@@ -70,7 +72,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. CHAT SESSIONS & PERSISTENCE
+# 2. CONTACTS & PERSISTENCE
 # -------------------------------------------------------------
 def load_contacts():
     if os.path.exists(CONTACTS_FILE):
@@ -97,9 +99,6 @@ if "chat_sessions" not in st.session_state:
 
 if "active_chat" not in st.session_state:
     st.session_state.active_chat = "Chat 1"
-
-if "uploaded_photo_url" not in st.session_state:
-    st.session_state.uploaded_photo_url = None
 
 # -------------------------------------------------------------
 # 3. AI ENGINES (Text & Image Generator)
@@ -128,7 +127,7 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 4. SIDEBAR (History & New Chat)
+# 4. SIDEBAR (Chat History & Media Attachment)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 💬 Chat History")
@@ -147,11 +146,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    # Quick File Picker in Sidebar if user clicks clip
-    with st.expander("📎 Photo Attachment", expanded=False):
+    with st.expander("📎 Photo Attachment (To Modify)", expanded=False):
         up_file = st.file_uploader("Select Photo:", type=["jpg", "png", "jpeg"])
         if up_file:
-            st.image(Image.open(up_file), caption="Attached Photo", use_container_width=True)
+            st.image(Image.open(up_file), caption="Attached Base Photo", use_container_width=True)
 
 # -------------------------------------------------------------
 # 5. CHAT MESSAGES DISPLAY
@@ -191,9 +189,9 @@ components.html("""
         <input type="text" id="waInput" placeholder="Message..." style="flex:1; border:none; outline:none; font-size:15px; color:#111B21; background:transparent;" onkeypress="if(event.key==='Enter') submitMsg()">
         
         <!-- Clip / Attachment Icon -->
-        <span title="Attach Photo to Modify" onclick="parent.document.querySelector('input[type=file]')?.click();" style="font-size:20px; cursor:pointer; color:#54656F;">📎</span>
+        <span title="Attach Photo" onclick="parent.document.querySelector('input[type=file]')?.click();" style="font-size:20px; cursor:pointer; color:#54656F;">📎</span>
         
-        <!-- Camera / Photo Generator Icon -->
+        <!-- Camera / AI Photo Generator Icon -->
         <span title="Generate AI Photo" onclick="triggerPhotoGen()" style="font-size:20px; cursor:pointer; color:#54656F;">📷</span>
     </div>
 
@@ -217,7 +215,6 @@ components.html("""
             chatInput.value = txt;
             chatInput.dispatchEvent(new Event('input', { bubbles: true }));
             input.value = '';
-            // Auto click send
             setTimeout(() => {
                 const sendBtn = parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
                 if (sendBtn) sendBtn.click();
