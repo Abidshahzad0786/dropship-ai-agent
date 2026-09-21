@@ -70,7 +70,6 @@ st.markdown("""
         text-decoration: none;
         box-shadow: 0 2px 6px rgba(37,211,102,0.3);
     }
-    
     div[data-testid="stChatInput"] {
         padding-bottom: 8px !important;
         display: flex !important;
@@ -110,7 +109,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi celebrity ki photo banwayein ya koi bhi kaam bolein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi celebrity ki realistic photo banwayein ya koi bhi kaam bolein."}
         ]
     }
 
@@ -150,7 +149,6 @@ CELEBRITY_MAP = {
 }
 
 def is_photo_intent(text):
-    """Detects if user wants an image, even with short/misspelled words"""
     t = text.lower()
     triggers = [
         "photo", "pic", "pics", "image", "tasweer", "tasvir", "picture",
@@ -160,10 +158,7 @@ def is_photo_intent(text):
     return any(k in t for k in triggers)
 
 def smart_enhance_prompt(raw_text):
-    """Deep multi-person and celebrity resolver for FLUX.1"""
     t = raw_text.lower()
-    
-    # Check celebrities in prompt
     found_celebs = []
     for key, val in CELEBRITY_MAP.items():
         if re.search(r'\b' + re.escape(key) + r'\b', t):
@@ -176,9 +171,8 @@ def smart_enhance_prompt(raw_text):
         clean = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|ki|sath|kay|r|aur)', '', t).strip()
         return f"A realistic 8k photograph portrait of {found_celebs[0]}, {clean}, highly detailed authentic face, sharp focus, cinematic lighting, 8k resolution"
     
-    # AI prompt enhancement fallback
     try:
-        sys_enhancer = "You are a prompt engineer for FLUX.1. Convert the user's image request into a high quality 8k photorealistic English prompt. Output ONLY the prompt."
+        sys_enhancer = "You are an expert prompt engineer for FLUX.1. Convert the user's image request into a high quality 8k photorealistic English prompt. Output ONLY the prompt."
         url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enhancer)}&model=openai"
         res = requests.get(url, timeout=6)
         if res.status_code == 200 and len(res.text.strip()) > 15:
@@ -189,7 +183,6 @@ def smart_enhance_prompt(raw_text):
     return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
 
 def generate_ai_response(conversation_history):
-    """Natural, high-IQ Roman Urdu conversation without robotic phrases"""
     sys_prompt = (
         "Aap aik highly intelligent, polite aur mature Executive AI Assistant hain. "
         "Aap natural Roman Urdu mein baat karte hain (Hindi ya robotic alfaaz jaise 'sahayata/turant' hargiz use na karein). "
@@ -397,7 +390,7 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehli theek nahi")
+    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehle wali theek nahi")
     is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "try karo"])
     
     if is_regen and st.session_state.last_image_prompt:
@@ -461,4 +454,6 @@ if user_input:
     current_messages.append({
         "role": "assistant",
         "content": ai_reply,
-        "image_u
+        "image_url": generated_img,
+        "options": options
+    })
