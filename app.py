@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & WHATSAPP THEME
+# 1. PAGE CONFIGURATION & WHATSAPP CLEAN THEME
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="AI Executive Super Copilot Pro",
@@ -59,6 +59,7 @@ st.markdown("""
         box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         color: #1F2937;
         line-height: 1.6;
+        position: relative;
     }
     .action-card {
         background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
@@ -70,6 +71,19 @@ st.markdown("""
         font-weight: 600;
         text-decoration: none;
         box-shadow: 0 2px 6px rgba(37,211,102,0.3);
+    }
+    .copy-btn {
+        background: #F1F5F9;
+        border: 1px solid #CBD5E1;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #475569;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 6px;
     }
     div[data-testid="stChatInput"] {
         padding-bottom: 8px !important;
@@ -89,7 +103,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. CONTACTS & SESSIONS PERSISTENCE
+# 2. CONTACTS & MULTI-CHAT PERSISTENCE
 # -------------------------------------------------------------
 def load_contacts():
     if os.path.exists(CONTACTS_FILE):
@@ -110,7 +124,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi shakhsiyat ke baray mein poochein, photo banwayein, business hisab karein ya WhatsApp message bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. News, politics, shakhsiyat ke baray mein poochein, photo banwayein ya WhatsApp message bhejein."}
         ]
     }
 
@@ -119,9 +133,6 @@ if "active_chat" not in st.session_state:
 
 if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
-
-if "last_mentioned_topic" not in st.session_state:
-    st.session_state.last_mentioned_topic = None
 
 # -------------------------------------------------------------
 # 3. KNOWLEDGE BASE & UNIVERSAL CELEBRITY MAP
@@ -188,88 +199,35 @@ def smart_enhance_prompt(raw_text):
     return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
 
 # -------------------------------------------------------------
-# 4. DEEP FACT FETCHER & CONTEXTUAL REASONING ENGINE
+# 4. DEEP FACT FETCHER & CONVERSATION REASONING ENGINE
 # -------------------------------------------------------------
-def fetch_live_facts(query_text):
-    """Live web facts search (Wikipedia + DuckDuckGo Instant Answers)"""
-    try:
-        clean = re.sub(r'(kon|hai|kya|batao|kisi|who|is|what|h|wo|\?|!)', '', query_text, flags=re.IGNORECASE).strip()
-        if len(clean) >= 3:
-            # Try Wikipedia REST API
-            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean)}"
-            headers = {"User-Agent": "AIStudioCopilot/3.0"}
-            res = requests.get(url, headers=headers, timeout=4)
-            if res.status_code == 200:
-                data = res.json()
-                extract = data.get("extract", "")
-                if extract:
-                    return f"**{data.get('title', clean)}**: {extract}"
-    except Exception:
-        pass
-    return None
-
 def generate_ai_response(user_text, conversation_history):
     t_low = user_text.lower()
     
-    # 1. Update Context Tracking (e.g. Imran Khan, Salman Khan, Dropshipping)
-    if "imran" in t_low or "pti" in t_low or "kaptaan" in t_low:
-        st.session_state.last_mentioned_topic = "imran_khan"
-    elif "salman" in t_low or "bhaijaan" in t_low:
-        st.session_state.last_mentioned_topic = "salman_khan"
-    elif "shahrukh" in t_low or "srk" in t_low or "sharu" in t_low:
-        st.session_state.last_mentioned_topic = "shahrukh_khan"
-    elif "dropshipping" in t_low or "shopify" in t_low or "business" in t_low:
-        st.session_state.last_mentioned_topic = "dropshipping"
-        
-    # 2. Check Contextual Follow-ups ("Kon hai wo", "Aur batao", "Kahan hai")
-    is_followup = any(f in t_low for f in ["kon hai", "who is", "aur batao", "kya karta hai", "wo kon", "kis ka"]) and len(t_low.split()) <= 4
-    
-    current_topic = st.session_state.last_mentioned_topic if is_followup else None
-
-    # Guaranteed Knowledge Responses
-    if current_topic == "imran_khan" or ("imran" in t_low and any(k in t_low for k in ["kon", "kya", "who", "hai", "h"])):
-        st.session_state.last_mentioned_topic = "imran_khan"
+    # Check PTI & Pakistan Politics / News
+    if any(k in t_low for k in ["pti", "pakistan news", "imran khan news", "siasat", "aj ki news", "aaj ki news"]):
         return (
-            "**Imran Khan** Pakistan ke 22wein Prime Minister aur Pakistan Tehreek-e-Insaf (PTI) ke bani (founder) hain.\n\n"
-            "• **Cricket Career:** 1992 mein unki captaincy mein Pakistan ne Cricket World Cup jeeta tha.\n"
-            "• **Falahi Kaam:** Unho ne Lahore aur Peshawar mein Shaukat Khanum Memorial Cancer Hospital aur Mianwali mein Namal University qaim ki.\n"
-            "• **Siyasat:** 1996 mein PTI banayi aur 2018 se April 2022 tak Pakistan ke Prime Minister rahe."
-        )
-    elif current_topic == "salman_khan" or ("salman" in t_low and any(k in t_low for k in ["kon", "kya", "who", "hai", "h"])):
-        st.session_state.last_mentioned_topic = "salman_khan"
-        return (
-            "**Salman Khan (Bhaijaan)** Bollywood ke sab se mashhoor aur kamyab superstars mein se aik hain.\n\n"
-            "• **Mashhoor Films:** 'Bajrangi Bhaijaan', 'Sultan', 'Dabangg', 'Hum Aapke Hain Koun', aur 'Tiger' franchise.\n"
-            "• **Charity:** Wo 'Being Human' foundation chalate hain jo healthcare aur education mein logon ki madad karti hai.\n"
-            "• **TV Host:** Wo 'Bigg Boss' reality show ke mashhoor host hain."
-        )
-    elif current_topic == "shahrukh_khan" or (any(s in t_low for s in ["shahrukh", "sharu", "srk"]) and any(k in t_low for k in ["kon", "kya", "who", "hai", "h"])):
-        st.session_state.last_mentioned_topic = "shahrukh_khan"
-        return (
-            "**Shah Rukh Khan (SRK)** jinhein 'King Khan' aur 'Badshah of Bollywood' kaha jata hai, dunya ke sab se baray movie stars mein shumar hotay hain.\n\n"
-            "• **Superhit Movies:** 'DDLJ', 'Kuch Kuch Hota Hai', 'Chak De! India', 'Pathaan', 'Jawan' aur 'Dunki'.\n"
-            "• **Achievements:** 14 Filmfare Awards jeet chuke hain aur Red Chillies Entertainment ke maalik hain."
-        )
-    elif current_topic == "dropshipping" or "dropshipping" in t_low:
-        st.session_state.last_mentioned_topic = "dropshipping"
-        return (
-            "**Dropshipping** aik e-commerce business model hai jismein aap baghair advance inventory khareeday online store (Shopify/TikTok) par products bechtay hain.\n\n"
-            "1. **Product Listing:** Supplier ki product apne store par margin daal kar lagate hain.\n"
-            "2. **Customer Order:** Jab customer khareedta hai, to supplier direct customer ko parcel deliver karta hai.\n"
-            "3. **Profit:** Customer ki payment aur supplier ki cost ke darmiyan ka hissa aapka seedha munafa (net profit) hota hai."
+            "**Pakistan & PTI Current Affairs Summary:**\n\n"
+            "• **PTI & Imran Khan:** Imran Khan is waqt Rawalpindi ki Adiala Jail mein mukhtalif cases ka samna kar rahe hain. PTI ki qiyadat unki rihai aur legal cases ke liye Supreme Court aur High Courts mein appeal kar rahi hai.\n"
+            "• **Siasi Soorathal:** PTI Parliament ke andar aur bahar protest aur jalson ki call deti rehti hai aur unka mutaliba hai ke aaeen aur jamhooriyat ki baladasti qaim ki jaye.\n"
+            "• **Hakumat Ka Moaqqaf:** Hakumat aur mukhalif parties ka kehna hai ke qanoon apna rasta khud banayega aur tamam faislay adalaton ke zariye honge."
         )
 
-    # 3. Live Fact Context Fetcher
-    live_fact = fetch_live_facts(user_text)
-    user_prompt_with_facts = f"Fact Context: {live_fact}\nUser Question: {user_text}" if live_fact else user_text
+    # Conversation History Injection for Full Memory Recall
+    history_context = ""
+    for m in conversation_history[-8:]:
+        role_label = "User" if m["role"] == "user" else "AI Assistant"
+        history_context += f"{role_label}: {m['content']}\n"
 
     sys_prompt = (
-        "Aap aik highly intelligent, knowledgeable, mature aur polite Executive AI Assistant hain. "
-        "Aap natural, clear aur authentic Roman Urdu mein direct aur informative jawab dete hain. "
-        "Kabhi generic lines ('main samajh gaya hoon/wazahat karein') na bolein. Hamesha sawal ka mukammal accurate jawab dein."
+        "Aap aik highly intelligent, mature aur sharp Executive AI Assistant hain. "
+        "Aap Roman Urdu mein baat karte hain. "
+        f"Aapke paas pichli guftagu ki mukammal memory hai:\n{history_context}\n"
+        "Jab user pehle ki hui baat ka hawala de ('pehle humne kya baat ki thi', 'kon hai wo', 'aur batao'), to pichla context yaad rakh kar foran accurate jawab dein. "
+        "Kabhi robotic phrases na bolein. Hamesha direct, knowledgeable aur helpful jawab dein."
     )
 
-    # 4. Multi-Layer LLM Gateway
+    # Tier 1: Gemini API via Secrets (If Available)
     gemini_key = st.secrets.get("GEMINI_API_KEY", "")
     if gemini_key:
         try:
@@ -277,7 +235,7 @@ def generate_ai_response(user_text, conversation_history):
             headers_g = {"Content-Type": "application/json"}
             payload_g = {
                 "system_instruction": {"parts": [{"text": sys_prompt}]},
-                "contents": [{"role": "user", "parts": [{"text": user_prompt_with_facts}]}]
+                "contents": [{"role": "user", "parts": [{"text": user_text}]}]
             }
             res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
             if res_g.status_code == 200:
@@ -285,25 +243,42 @@ def generate_ai_response(user_text, conversation_history):
         except Exception:
             pass
 
+    # Tier 2: Open Dual-Model Cloud Engine
     try:
-        url_t3 = f"https://text.pollinations.ai/{urllib.parse.quote(user_prompt_with_facts)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t3 = requests.get(url_t3, timeout=7)
-        if res_t3.status_code == 200 and len(res_t3.text.strip()) > 15:
-            txt = res_t3.text.strip()
+        url_t2 = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
+        res_t2 = requests.get(url_t2, timeout=7)
+        if res_t2.status_code == 200 and len(res_t2.text.strip()) > 15:
+            txt = res_t2.text.strip()
             if "I'm sorry" not in txt and "wazahat" not in txt:
                 return txt
     except Exception:
         pass
 
-    if live_fact:
-        return f"{live_fact}\n\nIs baray mein aapko mazeed kya detail chahiye, batayein main foran guide karta hoon."
-        
-    return f"Aapka sawal '{user_text}' mere paas note ho gaya hai. Batayein iske baray mein kya detail janna chahte hain?"
+    # Tier 3: Direct JSON Multi-Turn Engine
+    try:
+        messages_payload = [{"role": "system", "content": sys_prompt}]
+        for m in conversation_history[-6:]:
+            messages_payload.append({"role": m["role"], "content": m["content"]})
+        messages_payload.append({"role": "user", "content": user_text})
+            
+        url_t3 = "https://text.pollinations.ai/openai"
+        headers_t3 = {"Content-Type": "application/json"}
+        payload_t3 = {"messages": messages_payload, "model": "openai"}
+        res_t3 = requests.post(url_t3, headers=headers_t3, json=payload_t3, timeout=8)
+        if res_t3.status_code == 200:
+            reply = res_t3.json()["choices"][0]["message"]["content"]
+            if len(reply.strip()) > 10 and "wazahat" not in reply:
+                return reply
+    except Exception:
+        pass
+
+    return f"Main aapki baat samajh gaya hoon: '{user_text}'. Is par aapko kis tarah ki information ya tafseel chahiye, batayein main foran guide karta hoon."
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
     seed = random.randint(10000, 999999)
-    return f"https://image.pollinations.ai/prompt/{clean_p}?model=flux&width=1024&height=1024&nologo=true&seed={seed}"
+    # Direct rock-solid URL
+    return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 def search_contacts(query):
     query = query.lower().strip()
@@ -325,7 +300,6 @@ with st.sidebar:
         ]
         st.session_state.active_chat = new_id
         st.session_state.last_image_prompt = None
-        st.session_state.last_mentioned_topic = None
         st.rerun()
 
     chat_names = list(st.session_state.chat_sessions.keys())
@@ -340,13 +314,13 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 6. CHAT MESSAGES DISPLAY
+# 6. CHAT MESSAGES DISPLAY (With 1-Tap Copy Button)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
 current_messages = st.session_state.chat_sessions[st.session_state.active_chat]
 
-for msg in current_messages:
+for idx, msg in enumerate(current_messages):
     role = msg["role"]
     content = msg["content"]
     options = msg.get("options", [])
@@ -355,7 +329,19 @@ for msg in current_messages:
     if role == "user":
         st.markdown(f"<div class='chat-bubble-user'>👤 {content}</div>", unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='chat-bubble-ai'>✨ {content}</div>", unsafe_allow_html=True)
+        # Message with Copy functionality
+        clean_content = content.replace("'", "\\'").replace("\n", "\\n")
+        copy_script = f"navigator.clipboard.writeText('{clean_content}'); alert('Copied to clipboard! ✅');"
+        
+        st.markdown(f"""
+        <div class='chat-bubble-ai'>
+            ✨ {content}
+            <div style='clear:both; margin-top:6px;'>
+                <button onclick="{copy_script}" class="copy-btn">📋 Copy</button>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if img_url:
             st.image(img_url, caption="FLUX.1 Photorealistic Output", use_container_width=True)
         if options:
@@ -490,17 +476,17 @@ if user_input:
     is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "try karo"])
     
     if is_regen and st.session_state.last_image_prompt:
-        with st.spinner("AI FLUX.1 se behtar realistic photo dobara generate kar raha hai..."):
+        with st.spinner("🎨 AI FLUX.1 8K Photo Dobara Generate Kar Raha Hai..."):
             enhanced_prompt = smart_enhance_prompt(st.session_state.last_image_prompt)
             generated_img = generate_flux_image_url(enhanced_prompt)
-            ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic tasweer dobara tayyar kar di hai:"
+            ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic photo dobara tayyar kar di hai:"
 
-    # 2. PHOTO INTENT (Captures "Sharu khan r Salman Khan ki pic ak Sath bano", etc.)
+    # 2. PHOTO INTENT (Captures "Salman Khan ki Kajal ke sath photo", etc.)
     elif is_photo_intent(user_input):
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
         
-        with st.spinner("AI FLUX.1 mein realistic photo design kar raha hai..."):
+        with st.spinner("🎨 AI FLUX.1 8K Photorealistic Image Render Kar Raha Hai..."):
             enhanced_prompt = smart_enhance_prompt(clean_raw)
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{clean_raw}'** ke asal logon ko pehchan kar FLUX realistic photo tayyar kar di hai:"
@@ -532,13 +518,21 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. HIGH-INTELLIGENCE GENERAL CONVERSATION (Imran Khan, Politics, Knowledge, Chat)
+    # 4. HIGH-INTELLIGENCE GENERAL CONVERSATION (News, Politics, Context Memory)
     else:
-        with st.spinner("AI deep analysis aur facts check kar raha hai..."):
+        with st.spinner("AI deep memory aur facts check kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
-    st.markdown(f"<div class='chat-bubble-ai'>✨ {ai_reply}</div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class='chat-bubble-ai'>
+        ✨ {ai_reply}
+        <div style='clear:both; margin-top:6px;'>
+            <button onclick="navigator.clipboard.writeText('{ai_reply.replace(chr(39), '').replace(chr(10), ' ')}'); alert('Copied! ✅');" class="copy-btn">📋 Copy</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     if generated_img:
         st.image(generated_img, caption="FLUX.1 Photorealistic Output", use_container_width=True)
     if options:
