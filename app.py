@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & WHATSAPP THEME
+# 1. PAGE CONFIGURATION & WHATSAPP CLEAN THEME
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="AI Studio Copilot",
@@ -29,8 +29,8 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .main .block-container {
-        padding-top: 15px;
-        padding-bottom: 140px !important;
+        padding-top: 10px;
+        padding-bottom: 120px !important;
         max-width: 850px;
     }
     .chat-bubble-user {
@@ -68,11 +68,16 @@ st.markdown("""
         text-decoration: none;
         box-shadow: 0 2px 6px rgba(37,211,102,0.3);
     }
+    
+    /* Hide default streamlit chat container padding to look 100% native */
+    div[data-testid="stChatInput"] {
+        padding-bottom: 5px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. CONTACTS & PERSISTENCE
+# 2. CONTACTS & SESSIONS PERSISTENCE
 # -------------------------------------------------------------
 def load_contacts():
     if os.path.exists(CONTACTS_FILE):
@@ -93,7 +98,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Copilot hoon. Neeche WhatsApp bar se bolein, photo attach karein ya commands dein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Copilot hoon. Neeche WhatsApp bar se photo banwayein ya messages bhejein."}
         ]
     }
 
@@ -127,14 +132,14 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 4. SIDEBAR (Chat History & Media Attachment)
+# 4. SIDEBAR (History & Photo Attachment)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 💬 Chat History")
     if st.button("➕ New Chat (Fresh Start)", use_container_width=True, type="primary"):
         new_id = f"Chat {len(st.session_state.chat_sessions) + 1} ({datetime.datetime.now().strftime('%H:%M')})"
         st.session_state.chat_sessions[new_id] = [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai. Batayein kya kaam karna hai?"}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai."}
         ]
         st.session_state.active_chat = new_id
         st.rerun()
@@ -146,13 +151,13 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    with st.expander("📎 Photo Attachment (To Modify)", expanded=False):
-        up_file = st.file_uploader("Select Photo:", type=["jpg", "png", "jpeg"])
+    with st.expander("📎 Attach Photo to Modify", expanded=False):
+        up_file = st.file_uploader("Upload Image:", type=["jpg", "png", "jpeg"])
         if up_file:
-            st.image(Image.open(up_file), caption="Attached Base Photo", use_container_width=True)
+            st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 5. CHAT MESSAGES DISPLAY
+# 5. CHAT MESSAGES DISPLAY (Pure Screen)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -177,88 +182,97 @@ for msg in current_messages:
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. EXACT WHATSAPP BOTTOM INPUT BAR + CIRCULAR MIC BUTTON
+# 6. EXACT WHATSAPP FLOATING BOTTOM BAR (Where Red Arrow Points)
 # -------------------------------------------------------------
 components.html("""
-<div style="position:fixed; bottom:12px; left:0; right:0; width:95%; max-width:750px; margin:0 auto; display:flex; align-items:center; gap:8px; z-index:99999; font-family:sans-serif;">
-    
-    <!-- White Rounded Pill Bar -->
-    <div style="flex:1; background:#FFFFFF; border-radius:30px; padding:6px 14px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 6px rgba(0,0,0,0.12); border:1px solid #E2E8F0;">
-        <span title="Emoji" style="font-size:20px; cursor:pointer; color:#54656F;">😊</span>
-        
-        <input type="text" id="waInput" placeholder="Message..." style="flex:1; border:none; outline:none; font-size:15px; color:#111B21; background:transparent;" onkeypress="if(event.key==='Enter') submitMsg()">
-        
-        <!-- Clip / Attachment Icon -->
-        <span title="Attach Photo" onclick="parent.document.querySelector('input[type=file]')?.click();" style="font-size:20px; cursor:pointer; color:#54656F;">📎</span>
-        
-        <!-- Camera / AI Photo Generator Icon -->
-        <span title="Generate AI Photo" onclick="triggerPhotoGen()" style="font-size:20px; cursor:pointer; color:#54656F;">📷</span>
-    </div>
-
-    <!-- Black Circular Floating Mic Button -->
-    <button id="waMicBtn" onclick="runVoice()" style="width:48px; height:48px; border-radius:50%; background:#111B21; border:none; color:white; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.25); flex-shrink:0;">
-        🎙️
-    </button>
-</div>
-
 <script>
-    let rec;
-    let isRec = false;
-    const micBtn = document.getElementById('waMicBtn');
-    const input = document.getElementById('waInput');
+    function injectWhatsAppStyle() {
+        const inputContainer = parent.document.querySelector('div[data-testid="stChatInput"]');
+        if (!inputContainer || parent.document.getElementById('wa-enhanced')) return;
+        
+        inputContainer.id = 'wa-enhanced';
+        inputContainer.style.display = 'flex';
+        inputContainer.style.alignItems = 'center';
+        inputContainer.style.gap = '8px';
+        inputContainer.style.padding = '8px 12px';
+        inputContainer.style.background = 'transparent';
 
-    function submitMsg() {
-        const txt = input.value.trim();
-        if(!txt) return;
-        const chatInput = parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-        if (chatInput) {
-            chatInput.value = txt;
-            chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-            input.value = '';
-            setTimeout(() => {
-                const sendBtn = parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
-                if (sendBtn) sendBtn.click();
-            }, 100);
+        const textareaBox = inputContainer.querySelector('div:has(textarea)');
+        if (textareaBox) {
+            textareaBox.style.borderRadius = '30px';
+            textareaBox.style.background = '#FFFFFF';
+            textareaBox.style.border = '1px solid #E2E8F0';
+            textareaBox.style.padding = '4px 12px';
+            textareaBox.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+            textareaBox.style.display = 'flex';
+            textareaBox.style.alignItems = 'center';
         }
-    }
 
-    function triggerPhotoGen() {
-        input.value = "Photo: ";
-        input.focus();
-    }
+        // Add Mic Button beside the bar
+        const micBtn = parent.document.createElement('button');
+        micBtn.innerHTML = '🎙️';
+        micBtn.id = 'floatingMic';
+        micBtn.style.width = '48px';
+        micBtn.style.height = '48px';
+        micBtn.style.borderRadius = '50%';
+        micBtn.style.background = '#111B21';
+        micBtn.style.border = 'none';
+        micBtn.style.color = 'white';
+        micBtn.style.fontSize = '20px';
+        micBtn.style.cursor = 'pointer';
+        micBtn.style.display = 'flex';
+        micBtn.style.alignItems = 'center';
+        micBtn.style.justifyContent = 'center';
+        micBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)';
+        micBtn.style.flexShrink = '0';
+        
+        let rec;
+        let isRec = false;
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            rec = new SR();
+            rec.continuous = false;
+            rec.lang = 'ur-PK';
 
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        rec = new SR();
-        rec.continuous = false;
-        rec.lang = 'ur-PK';
-
-        rec.onresult = (e) => {
-            const trans = e.results[0][0].transcript;
-            input.value = trans;
-            submitMsg();
-        };
-        rec.onend = () => {
-            isRec = false;
-            micBtn.style.background = '#111B21';
-        };
-    }
-
-    function runVoice() {
-        if (!rec) return alert('Browser voice recognition support nahi karta.');
-        if (isRec) {
-            rec.stop();
-        } else {
-            rec.start();
-            isRec = true;
-            micBtn.style.background = '#DC2626';
+            rec.onresult = (e) => {
+                const trans = e.results[0][0].transcript;
+                const ta = parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+                if (ta) {
+                    ta.value = trans;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    setTimeout(() => {
+                        const sBtn = parent.document.querySelector('button[data-testid="stChatInputSubmitButton"]');
+                        if (sBtn) sBtn.click();
+                    }, 200);
+                }
+            };
+            rec.onend = () => {
+                isRec = false;
+                micBtn.style.background = '#111B21';
+            };
         }
+
+        micBtn.onclick = () => {
+            if (!rec) return alert('Browser mic support nahi karta.');
+            if (isRec) {
+                rec.stop();
+            } else {
+                rec.start();
+                isRec = true;
+                micBtn.style.background = '#DC2626';
+            }
+        };
+
+        inputContainer.appendChild(micBtn);
     }
+
+    setTimeout(injectWhatsAppStyle, 400);
+    setInterval(injectWhatsAppStyle, 1000);
 </script>
-""", height=70)
+""", height=0, width=0)
 
-# Hidden Native Chat Input used by JavaScript Bridge
-user_input = st.chat_input("Message...", key="real_input")
+# Native Chat Input at Bottom (Transformed into WhatsApp Bar by JS)
+user_input = st.chat_input("Message...", key="wa_chat_box")
 
 if user_input:
     current_messages.append({"role": "user", "content": user_input})
