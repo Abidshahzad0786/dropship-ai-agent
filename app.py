@@ -12,11 +12,11 @@ import streamlit.components.v1 as components
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & WHATSAPP CLEAN THEME
+# 1. PAGE CONFIGURATION & WHATSAPP THEME
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="AI Executive Super Copilot Pro",
-    page_icon="👑",
+    page_title="Universal AI Executive Copilot Pro",
+    page_icon="🌍",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -58,8 +58,25 @@ st.markdown("""
         clear: both;
         box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         color: #1F2937;
-        line-height: 1.6;
+        line-height: 1.65;
         position: relative;
+    }
+    .msg-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+    .dots-menu {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        color: #8696A0;
+        padding: 0 4px;
+    }
+    .dots-menu:hover {
+        color: #111B21;
     }
     .action-card {
         background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
@@ -71,19 +88,6 @@ st.markdown("""
         font-weight: 600;
         text-decoration: none;
         box-shadow: 0 2px 6px rgba(37,211,102,0.3);
-    }
-    .copy-btn {
-        background: #F1F5F9;
-        border: 1px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 2px 8px;
-        font-size: 11px;
-        color: #475569;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        margin-top: 6px;
     }
     div[data-testid="stChatInput"] {
         padding-bottom: 8px !important;
@@ -103,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. CONTACTS & MULTI-CHAT PERSISTENCE
+# 2. CONTACTS & SESSIONS PERSISTENCE
 # -------------------------------------------------------------
 def load_contacts():
     if os.path.exists(CONTACTS_FILE):
@@ -124,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. News, politics, shakhsiyat ke baray mein poochein, photo banwayein ya WhatsApp message bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Assistant hoon. Dunya ki kisi bhi cheez ke baray mein poochein, maslay ka hal janayein, photo banwayein ya WhatsApp message bhejein."}
         ]
     }
 
@@ -135,7 +139,7 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. KNOWLEDGE BASE & UNIVERSAL CELEBRITY MAP
+# 3. GLOBAL CELEBRITY & IMAGE RESOLVER (FLUX.1)
 # -------------------------------------------------------------
 CELEBRITY_MAP = {
     "sharu": "Bollywood superstar Shah Rukh Khan",
@@ -161,7 +165,9 @@ CELEBRITY_MAP = {
     "babar azam": "Pakistani cricketer Babar Azam",
     "virat kohli": "Indian cricketer Virat Kohli",
     "ronaldo": "Cristiano Ronaldo",
-    "messi": "Lionel Messi"
+    "messi": "Lionel Messi",
+    "elon musk": "Elon Musk tech billionaire",
+    "trump": "Donald Trump"
 }
 
 def is_photo_intent(text):
@@ -169,7 +175,7 @@ def is_photo_intent(text):
     triggers = [
         "photo", "pic", "pics", "image", "tasweer", "tasvir", "picture",
         "banao", "bano", "bana", "genrate", "generate", "create",
-        "dikhao", "draw", "portrait", "shakil", "design", "look"
+        "dikhao", "draw", "portrait", "shakil", "design"
     ]
     return any(k in t for k in triggers)
 
@@ -199,35 +205,51 @@ def smart_enhance_prompt(raw_text):
     return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
 
 # -------------------------------------------------------------
-# 4. DEEP FACT FETCHER & CONVERSATION REASONING ENGINE
+# 4. UNIVERSAL WEB KNOWLEDGE & DEEP SOLUTION BRAIN
 # -------------------------------------------------------------
-def generate_ai_response(user_text, conversation_history):
-    t_low = user_text.lower()
-    
-    # Check PTI & Pakistan Politics / News
-    if any(k in t_low for k in ["pti", "pakistan news", "imran khan news", "siasat", "aj ki news", "aaj ki news"]):
-        return (
-            "**Pakistan & PTI Current Affairs Summary:**\n\n"
-            "• **PTI & Imran Khan:** Imran Khan is waqt Rawalpindi ki Adiala Jail mein mukhtalif cases ka samna kar rahe hain. PTI ki qiyadat unki rihai aur legal cases ke liye Supreme Court aur High Courts mein appeal kar rahi hai.\n"
-            "• **Siasi Soorathal:** PTI Parliament ke andar aur bahar protest aur jalson ki call deti rehti hai aur unka mutaliba hai ke aaeen aur jamhooriyat ki baladasti qaim ki jaye.\n"
-            "• **Hakumat Ka Moaqqaf:** Hakumat aur mukhalif parties ka kehna hai ke qanoon apna rasta khud banayega aur tamam faislay adalaton ke zariye honge."
-        )
+def fetch_global_knowledge(query_text):
+    """World-wide knowledge search from Wikipedia & DuckDuckGo APIs"""
+    try:
+        clean = re.sub(r'(kon|hai|kya|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|\?|!)', '', query_text, flags=re.IGNORECASE).strip()
+        if len(clean) >= 3:
+            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean)}"
+            headers = {"User-Agent": "UniversalAIStudio/4.0"}
+            res = requests.get(url, headers=headers, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                extract = data.get("extract", "")
+                if extract:
+                    return f"**{data.get('title', clean)}**: {extract}"
+    except Exception:
+        pass
+    return None
 
-    # Conversation History Injection for Full Memory Recall
+def generate_ai_response(user_text, conversation_history):
+    """Deep problem solving, world knowledge, and broken Roman Urdu understanding"""
+    
+    # 1. Fetch World Live Knowledge Context
+    world_facts = fetch_global_knowledge(user_text)
+    
+    # 2. Compile Chat History for Long-Term Memory Recall
     history_context = ""
     for m in conversation_history[-8:]:
-        role_label = "User" if m["role"] == "user" else "AI Assistant"
-        history_context += f"{role_label}: {m['content']}\n"
+        role = "User" if m["role"] == "user" else "Assistant"
+        history_context += f"{role}: {m['content']}\n"
 
     sys_prompt = (
-        "Aap aik highly intelligent, mature aur sharp Executive AI Assistant hain. "
-        "Aap Roman Urdu mein baat karte hain. "
-        f"Aapke paas pichli guftagu ki mukammal memory hai:\n{history_context}\n"
-        "Jab user pehle ki hui baat ka hawala de ('pehle humne kya baat ki thi', 'kon hai wo', 'aur batao'), to pichla context yaad rakh kar foran accurate jawab dein. "
-        "Kabhi robotic phrases na bolein. Hamesha direct, knowledgeable aur helpful jawab dein."
+        "Aap aik dunya ke sab se behtareen, ultra-intelligent aur solution-oriented Executive AI Assistant hain. "
+        "Aap natural, mature aur authentic Roman Urdu mein baat karte hain.\n\n"
+        "Aapke Qawaid (Rules):\n"
+        "1. **Tooti-Phooti Zaban Samajhna:** User agar spelling ghalat likhe, slang bole ya tooti phooti Roman Urdu likhe, aap foran uska maqsad samajh kar seedha jawab dein.\n"
+        "2. **Dunya Ka Har Ilm (Global Knowledge):** Science, Tareekh, Dunya ki Siyasat, E-commerce, Dropshipping, Technology, Sehat (Health), ya Daily life masle ka mukammal aur wazeh bayan karein.\n"
+        "3. **Practical Solutions:** Jab koi masla pooche, to sirf baat na karein balkay step-by-step 1, 2, 3 karke mukammal practical hal samjhayein.\n"
+        "4. **Long Memory:** Pichli guftagu ka mukammal dhyan rakhein taake agar user 'pehle kya baat hui' ya follow-up pooche to context yaad ho.\n"
+        f"Pichla Context:\n{history_context}\n"
     )
+    
+    user_payload = f"World Fact Context: {world_facts}\nUser Query: {user_text}" if world_facts else user_text
 
-    # Tier 1: Gemini API via Secrets (If Available)
+    # Tier 1: Gemini REST API (If Key in Secrets)
     gemini_key = st.secrets.get("GEMINI_API_KEY", "")
     if gemini_key:
         try:
@@ -235,7 +257,7 @@ def generate_ai_response(user_text, conversation_history):
             headers_g = {"Content-Type": "application/json"}
             payload_g = {
                 "system_instruction": {"parts": [{"text": sys_prompt}]},
-                "contents": [{"role": "user", "parts": [{"text": user_text}]}]
+                "contents": [{"role": "user", "parts": [{"text": user_payload}]}]
             }
             res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
             if res_g.status_code == 200:
@@ -243,10 +265,10 @@ def generate_ai_response(user_text, conversation_history):
         except Exception:
             pass
 
-    # Tier 2: Open Dual-Model Cloud Engine
+    # Tier 2: Cloud Neural Model Gateway
     try:
-        url_t2 = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t2 = requests.get(url_t2, timeout=7)
+        url_t2 = f"https://text.pollinations.ai/{urllib.parse.quote(user_payload)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
+        res_t2 = requests.get(url_t2, timeout=8)
         if res_t2.status_code == 200 and len(res_t2.text.strip()) > 15:
             txt = res_t2.text.strip()
             if "I'm sorry" not in txt and "wazahat" not in txt:
@@ -254,12 +276,12 @@ def generate_ai_response(user_text, conversation_history):
     except Exception:
         pass
 
-    # Tier 3: Direct JSON Multi-Turn Engine
+    # Tier 3: Direct JSON Multi-Turn Payload
     try:
         messages_payload = [{"role": "system", "content": sys_prompt}]
-        for m in conversation_history[-6:]:
+        for m in conversation_history[-4:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
-        messages_payload.append({"role": "user", "content": user_text})
+        messages_payload.append({"role": "user", "content": user_payload})
             
         url_t3 = "https://text.pollinations.ai/openai"
         headers_t3 = {"Content-Type": "application/json"}
@@ -272,12 +294,14 @@ def generate_ai_response(user_text, conversation_history):
     except Exception:
         pass
 
-    return f"Main aapki baat samajh gaya hoon: '{user_text}'. Is par aapko kis tarah ki information ya tafseel chahiye, batayein main foran guide karta hoon."
+    if world_facts:
+        return f"{world_facts}\n\nIs baray mein aapka koi makhsoos sawal ho to batayein, main step-by-step guide karta hoon."
+
+    return f"Aapka sawal '{user_text}' samajh aa gaya hai. Is hawale se mukammal solution aur detail hasil karne ke liye mazeed batayein main foran guide karta hoon."
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
     seed = random.randint(10000, 999999)
-    # Direct rock-solid URL
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 def search_contacts(query):
@@ -314,7 +338,7 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 6. CHAT MESSAGES DISPLAY (With 1-Tap Copy Button)
+# 6. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -329,16 +353,16 @@ for idx, msg in enumerate(current_messages):
     if role == "user":
         st.markdown(f"<div class='chat-bubble-user'>👤 {content}</div>", unsafe_allow_html=True)
     else:
-        # Message with Copy functionality
-        clean_content = content.replace("'", "\\'").replace("\n", "\\n")
-        copy_script = f"navigator.clipboard.writeText('{clean_content}'); alert('Copied to clipboard! ✅');"
+        escaped_txt = content.replace("'", "\\'").replace("\n", " ")
+        copy_js = f"navigator.clipboard.writeText('{escaped_txt}'); alert('Message Copied! ✅');"
         
         st.markdown(f"""
         <div class='chat-bubble-ai'>
-            ✨ {content}
-            <div style='clear:both; margin-top:6px;'>
-                <button onclick="{copy_script}" class="copy-btn">📋 Copy</button>
+            <div class='msg-header'>
+                <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ AI Executive Copilot</span>
+                <button onclick="{copy_js}" title="Copy Message" class="dots-menu">⋮</button>
             </div>
+            {content}
         </div>
         """, unsafe_allow_html=True)
         
@@ -481,7 +505,7 @@ if user_input:
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic photo dobara tayyar kar di hai:"
 
-    # 2. PHOTO INTENT (Captures "Salman Khan ki Kajal ke sath photo", etc.)
+    # 2. PHOTO INTENT (Captures "Salman Khan ki photo", etc.)
     elif is_photo_intent(user_input):
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
@@ -491,8 +515,8 @@ if user_input:
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{clean_raw}'** ke asal logon ko pehchan kar FLUX realistic photo tayyar kar di hai:"
 
-    # 3. WHATSAPP MULTI-CONTACT HANDLER
-    elif any(k in t for k in ["whatsapp", "wa", "sms", "message", "kaho", "bolo", "chat"]):
+    # 3. STRICT WHATSAPP HANDLER (Only when user explicitly says WhatsApp / Message)
+    elif re.search(r'\b(whatsapp|wa\s+message)\b', t) and any(act in t for act in ["karo", "bhejo", "open", "kholo", "send", "chat"]):
         name_match = re.search(r'([a-zA-Z0-9_\s]+?)\s+(?:ko|par|per|kaho|bolo)\b', t)
         target_name = name_match.group(1).strip() if name_match else ""
         for skip in ["whatsapp", "business", "main", "ok", "hi", "sms", "message"]:
@@ -518,18 +542,22 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. HIGH-INTELLIGENCE GENERAL CONVERSATION (News, Politics, Context Memory)
+    # 4. HIGH-INTELLIGENCE UNIVERSAL WORLD CONVERSATION & PROBLEM SOLVING
     else:
-        with st.spinner("AI deep memory aur facts check kar raha hai..."):
+        with st.spinner("AI deep solution aur global knowledge analyze kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
+    escaped_reply = ai_reply.replace("'", "\\'").replace("\n", " ")
+    copy_js_now = f"navigator.clipboard.writeText('{escaped_reply}'); alert('Message Copied! ✅');"
+    
     st.markdown(f"""
     <div class='chat-bubble-ai'>
-        ✨ {ai_reply}
-        <div style='clear:both; margin-top:6px;'>
-            <button onclick="navigator.clipboard.writeText('{ai_reply.replace(chr(39), '').replace(chr(10), ' ')}'); alert('Copied! ✅');" class="copy-btn">📋 Copy</button>
+        <div class='msg-header'>
+            <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ AI Executive Copilot</span>
+            <button onclick="{copy_js_now}" title="Copy Message" class="dots-menu">⋮</button>
         </div>
+        {ai_reply}
     </div>
     """, unsafe_allow_html=True)
 
