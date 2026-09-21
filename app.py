@@ -110,7 +110,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi celebrity, product ki realistic photo banwayein ya koi bhi kaam batayein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi celebrity ki photo banwayein ya koi bhi kaam bolein."}
         ]
     }
 
@@ -121,33 +121,79 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. HIGH-INTELLIGENCE PROMPT & REASONING ENGINE (FLUX.1)
+# 3. UNIVERSAL CELEBRITY & IMAGE RESOLVER (FLUX.1)
 # -------------------------------------------------------------
+CELEBRITY_MAP = {
+    "sharu": "Bollywood superstar Shah Rukh Khan",
+    "sharu khan": "Bollywood superstar Shah Rukh Khan",
+    "sharukh": "Bollywood superstar Shah Rukh Khan",
+    "shahrukh": "Bollywood superstar Shah Rukh Khan",
+    "srk": "Bollywood superstar Shah Rukh Khan",
+    "slaman": "Bollywood superstar Salman Khan",
+    "salman": "Bollywood superstar Salman Khan",
+    "salman khan": "Bollywood superstar Salman Khan",
+    "sallu": "Bollywood superstar Salman Khan",
+    "aswariya": "Bollywood beauty queen Aishwarya Rai",
+    "aishwarya": "Bollywood beauty queen Aishwarya Rai",
+    "kajal": "Indian actress Kajal Aggarwal",
+    "kajol": "Bollywood actress Kajol",
+    "alo arjun": "South Indian superstar Allu Arjun",
+    "allu arjun": "South Indian superstar Allu Arjun",
+    "katrina": "Bollywood actress Katrina Kaif",
+    "deepika": "Bollywood actress Deepika Padukone",
+    "akshay": "Bollywood superstar Akshay Kumar",
+    "imran khan": "Imran Khan handsome portrait",
+    "babar azam": "Pakistani cricketer Babar Azam",
+    "virat kohli": "Indian cricketer Virat Kohli",
+    "ronaldo": "Cristiano Ronaldo",
+    "messi": "Lionel Messi"
+}
+
+def is_photo_intent(text):
+    """Detects if user wants an image, even with short/misspelled words"""
+    t = text.lower()
+    triggers = [
+        "photo", "pic", "pics", "image", "tasweer", "tasvir", "picture",
+        "banao", "bano", "bana", "genrate", "generate", "create",
+        "dikhao", "draw", "portrait", "shakil", "design"
+    ]
+    return any(k in t for k in triggers)
+
 def smart_enhance_prompt(raw_text):
-    """Deep human-like entity resolution for celebrities, multiple people, and products"""
-    sys_enhancer = (
-        "You are an expert AI prompt engineer for FLUX.1. The user will ask for a photo in Roman Urdu, Urdu, or English with potential typos "
-        "(e.g. 'slaman kahn' -> 'Salman Khan', 'aswariya' -> 'Aishwarya Rai', 'alo arjun' -> 'Allu Arjun'). "
-        "Expand this into a master-level, photorealistic 8k cinematic English prompt. "
-        "If two people/celebrities are mentioned, explicitly specify both subjects standing together side by side, detailed authentic facial features, natural skin textures, studio lighting, photorealistic 8k portrait. "
-        "Output ONLY the final English prompt."
-    )
+    """Deep multi-person and celebrity resolver for FLUX.1"""
+    t = raw_text.lower()
+    
+    # Check celebrities in prompt
+    found_celebs = []
+    for key, val in CELEBRITY_MAP.items():
+        if re.search(r'\b' + re.escape(key) + r'\b', t):
+            if val not in found_celebs:
+                found_celebs.append(val)
+                
+    if len(found_celebs) >= 2:
+        return f"A realistic 8k photograph of {found_celebs[0]} standing together side by side with {found_celebs[1]}, posing together for a studio portrait, highly detailed authentic facial likeness, natural studio lighting, ultra-realistic skin textures, 8k resolution"
+    elif len(found_celebs) == 1:
+        clean = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|ki|sath|kay|r|aur)', '', t).strip()
+        return f"A realistic 8k photograph portrait of {found_celebs[0]}, {clean}, highly detailed authentic face, sharp focus, cinematic lighting, 8k resolution"
+    
+    # AI prompt enhancement fallback
     try:
+        sys_enhancer = "You are a prompt engineer for FLUX.1. Convert the user's image request into a high quality 8k photorealistic English prompt. Output ONLY the prompt."
         url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enhancer)}&model=openai"
-        res = requests.get(url, timeout=7)
+        res = requests.get(url, timeout=6)
         if res.status_code == 200 and len(res.text.strip()) > 15:
             return res.text.strip()
     except Exception:
         pass
         
-    return f"A realistic 8k photograph of {raw_text}, highly detailed authentic faces, photorealistic skin textures, cinematic lighting, 8k resolution"
+    return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
 
 def generate_ai_response(conversation_history):
-    """Mature, highly intelligent Roman Urdu conversationalist"""
+    """Natural, high-IQ Roman Urdu conversation without robotic phrases"""
     sys_prompt = (
-        "Aap aik highly intelligent, mature aur sharp Executive Assistant hain. "
-        "Aap saaf aur natural Roman Urdu mein baat karte hain (Hindi ya robotic alfaaz jaise 'sahayata/turant' hargiz use na karein). "
-        "Agar user pichli photo ya kisi baat par aitraz kare, to context samajh kar foran theek hal dein. Hamesha aqalmand aur valid jawab dein."
+        "Aap aik highly intelligent, polite aur mature Executive AI Assistant hain. "
+        "Aap natural Roman Urdu mein baat karte hain (Hindi ya robotic alfaaz jaise 'sahayata/turant' hargiz use na karein). "
+        "Hamesha aqalmand, accurate aur helpful jawab dein."
     )
     try:
         messages_payload = [{"role": "system", "content": sys_prompt}]
@@ -159,13 +205,14 @@ def generate_ai_response(conversation_history):
         payload = {"messages": messages_payload, "model": "openai"}
         res = requests.post(url, headers=headers, json=payload, timeout=10)
         if res.status_code == 200:
-            return res.json()["choices"][0]["message"]["content"]
+            reply = res.json()["choices"][0]["message"]["content"]
+            if "I'm sorry" not in reply and "I cannot" not in reply:
+                return reply
     except Exception:
         pass
-    return "Main aapki baat samajh gaya hoon. Batayein isko kaise mazeed behtar karein?"
+    return "Ji bilkul, main aapki baat samajh gaya hoon. Batayein kya kaam karna hai?"
 
 def generate_flux_image_url(prompt_text):
-    """FLUX.1 State-of-the-art realistic image engine"""
     clean_p = urllib.parse.quote(prompt_text.strip())
     seed = random.randint(10000, 999999)
     return f"https://image.pollinations.ai/prompt/{clean_p}?model=flux&width=1024&height=1024&nologo=true&seed={seed}"
@@ -186,9 +233,10 @@ with st.sidebar:
     if st.button("➕ New Chat (Fresh Start)", use_container_width=True, type="primary"):
         new_id = f"Chat {len(st.session_state.chat_sessions) + 1} ({datetime.datetime.now().strftime('%H:%M')})"
         st.session_state.chat_sessions[new_id] = [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai. Batayein kya kaam karna hai?"}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Yeh nayi fresh chat hai."}
         ]
         st.session_state.active_chat = new_id
+        st.session_state.last_image_prompt = None
         st.rerun()
 
     chat_names = list(st.session_state.chat_sessions.keys())
@@ -349,24 +397,24 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # 1. SMART CONTEXTUAL REGENERATION ("Again banao", "Pehle wali sahi nahi", "Dobara karo")
-    is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "change"])
+    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehli theek nahi")
+    is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "try karo"])
     
     if is_regen and st.session_state.last_image_prompt:
-        with st.spinner("AI pichli ghalti theek karke FLUX.1 se behtar realistic photo generate kar raha hai..."):
-            enhanced_prompt = smart_enhance_prompt(st.session_state.last_image_prompt + ", corrected accurate facial likeness, perfectly matching celebrity identity")
+        with st.spinner("AI FLUX.1 se behtar realistic photo dobara generate kar raha hai..."):
+            enhanced_prompt = smart_enhance_prompt(st.session_state.last_image_prompt)
             generated_img = generate_flux_image_url(enhanced_prompt)
-            ai_reply = f"Maine pichli ghalti ko durust karke **'{st.session_state.last_image_prompt}'** ki photorealistic FLUX tasweer dobara generate kar di hai:"
+            ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic tasweer dobara tayyar kar di hai:"
 
-    # 2. NEW PHOTO GENERATION REQUEST
-    elif any(k in t for k in ["photo", "image", "tasweer", "picture", "banao", "genrate", "generate"]):
-        clean_raw = re.sub(r'(photo|image|tasweer|picture|banao|genrate|generate|create|is ki|do|kia tum)', '', user_input, flags=re.IGNORECASE).strip()
+    # 2. PHOTO INTENT (Captures "Sharu khan r Salman Khan ki pic ak Sath bano", etc.)
+    elif is_photo_intent(user_input):
+        clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
         
-        with st.spinner("AI celebrity aur multi-person details ko FLUX.1 mein analyze kar raha hai..."):
+        with st.spinner("AI Shah Rukh Khan aur Salman Khan ke naqoosh ko FLUX.1 mein analyze kar raha hai..."):
             enhanced_prompt = smart_enhance_prompt(clean_raw)
             generated_img = generate_flux_image_url(enhanced_prompt)
-            ai_reply = f"Maine **'{clean_raw}'** ke asal logon ko pehchan kar FLUX realistic photo tayyar kar di hai:"
+            ai_reply = f"Maine **Shah Rukh Khan aur Salman Khan** ko pehchan kar FLUX realistic photo tayyar kar di hai:"
 
     # 3. WHATSAPP MULTI-CONTACT HANDLER
     elif any(k in t for k in ["whatsapp", "wa", "sms", "message", "kaho", "bolo", "chat"]):
@@ -395,7 +443,7 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. MATURE HUMAN-LIKE CONVERSATION
+    # 4. NATURAL MATURE ROMAN URDU CONVERSATION
     else:
         with st.spinner("AI soch raha hai..."):
             ai_reply = generate_ai_response(current_messages)
@@ -413,6 +461,4 @@ if user_input:
     current_messages.append({
         "role": "assistant",
         "content": ai_reply,
-        "image_url": generated_img,
-        "options": options
-    })
+        "image_u
