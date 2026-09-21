@@ -8,7 +8,7 @@ import os
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & AI STUDIO DOCK STYLING
+# 1. PAGE CONFIGURATION & GOOGLE AI STUDIO BOTTOM DOCK STYLING
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="AI Studio Super Copilot",
@@ -21,16 +21,19 @@ CONTACTS_FILE = "my_contacts.json"
 
 st.markdown("""
 <style>
-    /* Google AI Studio Clean Theme */
+    /* Google AI Studio Light Theme */
     .stApp { 
         background-color: #F8F9FA; 
         color: #1F1F1F; 
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .main-header {
-        text-align: center;
-        padding: 5px 0 10px 0;
+    
+    /* Extra padding at bottom so chat never hides behind bottom dock */
+    .main .block-container {
+        padding-bottom: 140px !important;
+        max-width: 850px;
     }
+    
     .chat-bubble-user {
         background-color: #E7F8EC;
         border: 1px solid #C2E7CB;
@@ -66,25 +69,44 @@ st.markdown("""
         box-shadow: 0 3px 8px rgba(37,211,102,0.3);
     }
     
-    /* Bottom Dock Bar (AI Studio Visual Style) */
-    .studio-bottom-dock {
+    /* Fixed Floating Bottom AI Studio Dock */
+    .studio-fixed-bottom {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
         background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 8px 14px;
+        border-top: 1px solid #E2E8F0;
+        padding: 8px 16px 12px 16px;
+        z-index: 99999;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+    }
+    .dock-inner {
+        max-width: 850px;
+        margin: 0 auto;
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        flex-wrap: wrap;
     }
-    .dock-pill {
+    .icon-pill {
+        background: #F1F5F9;
+        border: 1px solid #CBD5E1;
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: #334155;
+        cursor: pointer;
+    }
+    .model-pill {
         background: #F1F5F9;
         border: 1px solid #CBD5E1;
         border-radius: 20px;
-        padding: 4px 10px;
-        font-size: 12px;
+        padding: 6px 12px;
+        font-size: 13px;
         font-weight: 600;
         color: #334155;
         display: inline-flex;
@@ -132,7 +154,7 @@ def search_contacts(query):
 # 3. AI REASONING & IMAGE ENGINES
 # -------------------------------------------------------------
 def generate_ai_text(prompt_text):
-    sys_prompt = "Aap aik Roman Urdu Executive AI Studio Assistant hain. Hamesha direct, helpful aur professional andaaz mein jawab dein."
+    sys_prompt = "Aap aik Roman Urdu Executive AI Studio Assistant hain. Hamesha direct, helpful aur short jawab dein."
     try:
         url = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
         res = requests.get(url, timeout=8)
@@ -140,26 +162,22 @@ def generate_ai_text(prompt_text):
             return res.text.strip()
     except Exception:
         pass
-    return "Main aapka AI Studio Assistant hoon. Batayein photo modify karni hai ya WhatsApp message bhejna hai?"
+    return "Main aapka AI Studio Assistant hoon. Batayein photo banwani hai ya WhatsApp message bhejna hai?"
 
 def generate_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true"
 
 # -------------------------------------------------------------
-# 4. UI HEADER
+# 4. CHAT HISTORY (Pure Top Flow)
 # -------------------------------------------------------------
-st.markdown("<div class='main-header'><h2>✨ AI Studio Super Copilot</h2><p style='color:#6B7280;'>Visual Photo Modifier • Voice • Multi-Contact WhatsApp</p></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; padding: 10px 0;'><h3 style='margin:0;'>✨ AI Studio Copilot</h3></div>", unsafe_allow_html=True)
 
-# -------------------------------------------------------------
-# 5. CHAT SESSION & DISPLAY
-# -------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Studio Copilot hoon. Neeche mic se bolein, photo attach karke modify karwayein, ya WhatsApp messages bhejein."}
+        {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Studio Copilot hoon. Neeche mic se bolein, photo attach karein ya WhatsApp messages bhejein."}
     ]
 
-# Display Chat History
 for msg in st.session_state.messages:
     role = msg["role"]
     content = msg["content"]
@@ -171,7 +189,7 @@ for msg in st.session_state.messages:
     else:
         st.markdown(f"<div class='chat-bubble-ai'>✨ {content}</div>", unsafe_allow_html=True)
         if img_url:
-            st.image(img_url, caption="Studio Output Image", use_container_width=True)
+            st.image(img_url, caption="Studio Generated / Modified Image", use_container_width=True)
         if options:
             st.markdown("<div style='clear:both; padding-top:6px;'>", unsafe_allow_html=True)
             for opt in options:
@@ -179,41 +197,42 @@ for msg in st.session_state.messages:
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. BOTTOM AI STUDIO TOOLBAR DOCK (Exact Reference Look)
+# 5. ATTACHMENT UPLOADER DRAWER (Compact at bottom)
 # -------------------------------------------------------------
-st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-
-# Bottom Dock: Attach + Tools + Model + Voice Mic Widget
-st.markdown("""
-<div class="studio-bottom-dock">
-    <span class="dock-pill"><b>➕</b> Media</span>
-    <span class="dock-pill"><b>⚡</b> Tools</span>
-    <span class="dock-pill"><b>G</b> Gemini 2.0 Flash ▾</span>
-    <span class="dock-pill" style="background:#E0F2FE; color:#0369A1;">🎙️ Voice Active</span>
-</div>
-""", unsafe_allow_html=True)
-
-# Attachment Drawer & Voice Component
-with st.expander("➕ Attach Photo from Phone (Edit / Modify)", expanded=False):
-    uploaded_photo = st.file_uploader("Phone se photo select karein:", type=["jpg", "png", "jpeg"], key="dock_uploader")
+with st.sidebar:
+    st.subheader("📎 Media Attachment")
+    uploaded_photo = st.file_uploader("Upload Base Photo (Modify karwane ke liye):", type=["jpg", "png", "jpeg"], key="side_photo")
     if uploaded_photo:
-        img_preview = Image.open(uploaded_photo)
-        st.image(img_preview, caption="Uploaded Image", width=250)
+        st.image(Image.open(uploaded_photo), caption="Selected Photo", use_container_width=True)
 
-# Live Browser Voice Mic Integration
+# -------------------------------------------------------------
+# 6. BOTTOM AI STUDIO TOOLBAR (Icons Only + Live Mic)
+# -------------------------------------------------------------
 components.html("""
-<div style="display:flex; align-items:center; gap:8px; font-family: sans-serif; padding: 4px 0;">
-    <button id="micBtn" onclick="toggleVoice()" style="background:#2563EB; color:white; border:none; border-radius:50%; width:38px; height:38px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(37,99,235,0.3);">
-        🎙️
-    </button>
-    <span id="statusTxt" style="font-size:13px; color:#64748B;">Mic dabayein aur bol kar command dein...</span>
+<div style="display:flex; align-items:center; justify-content:space-between; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:30px; padding:6px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); font-family:sans-serif;">
+    <div style="display:flex; align-items:center; gap:8px;">
+        <button title="Attach Media" onclick="parent.document.querySelector('input[type=file]')?.click();" style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; color:#334155;">
+            ➕
+        </button>
+        <span style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:20px; padding:5px 10px; font-size:12px; font-weight:600; color:#334155;">
+            ⚙️ Tools
+        </span>
+        <span style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:20px; padding:5px 10px; font-size:12px; font-weight:600; color:#334155;">
+            <b>G</b> Gemini 2.0 ›
+        </span>
+    </div>
+    
+    <div style="display:flex; align-items:center; gap:8px;">
+        <button id="micBtn" onclick="toggleVoice()" style="background:#2563EB; color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:17px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(37,99,235,0.3);">
+            🎙️
+        </button>
+    </div>
 </div>
 
 <script>
     let recognition;
     let isRecording = false;
     const btn = document.getElementById('micBtn');
-    const txt = document.getElementById('statusTxt');
 
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -223,9 +242,11 @@ components.html("""
 
         recognition.onresult = (e) => {
             const transcript = e.results[0][0].transcript;
-            txt.innerText = '🗣️ "' + transcript + '" (Neeche box mein copy karein)';
-            // Copy to clipboard for easy pasting
-            navigator.clipboard.writeText(transcript);
+            const chatInput = parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+            if (chatInput) {
+                chatInput.value = transcript;
+                chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
         };
 
         recognition.onend = () => {
@@ -242,16 +263,13 @@ components.html("""
             recognition.start();
             isRecording = true;
             btn.style.background = '#DC2626';
-            txt.innerText = '🎙️ Sun raha hoon... (Bolein)';
         }
     }
 </script>
-""", height=55)
+""", height=50)
 
-# -------------------------------------------------------------
-# 7. CHAT INPUT & INTELLIGENT DISPATCHER
-# -------------------------------------------------------------
-user_input = st.chat_input("Prompt likhein ya bolein (e.g. 'Photo: luxury gold watch' ya 'Love ko WhatsApp karo')...")
+# Chat Input Box
+user_input = st.chat_input("Prompt likhein ya 🎙️ mic se bolein (e.g. 'Photo: luxury gold watch' ya 'Love ko WhatsApp karo')...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -262,20 +280,20 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # CASE A: Photo Modification / Generation
+    # 1. Photo Modification / Generation
     if any(k in t for k in ["photo", "image", "tasweer", "picture", "banao", "change", "modify", "edit"]):
         clean_prompt = re.sub(r'(photo|image|tasweer|picture|banao|change|karo|modify|edit|is ko|thoda|asa|kar do)', '', user_input, flags=re.IGNORECASE).strip()
         
         if uploaded_photo and any(mod in t for mod in ["change", "modify", "edit", "is ko"]):
             final_prompt = f"Studio modification of uploaded image: {clean_prompt}, 8k resolution, photorealistic, professional lighting"
-            ai_reply = f"Maine aapki uploaded photo ke mutabiq naya modified version generate kar diya hai: *{clean_prompt}*"
+            ai_reply = f"Maine aapki uploaded photo ke mutabiq modified photo tayyar kar di hai: *{clean_prompt}*"
         else:
             final_prompt = f"{clean_prompt}, commercial studio lighting, ultra-detailed, 8k quality"
             ai_reply = f"Maine aapki description ke mutabiq Studio Image create kar di hai: *{clean_prompt}*"
             
         generated_img = generate_image_url(final_prompt)
 
-    # CASE B: WhatsApp & Multi-Contact Disambiguation
+    # 2. WhatsApp Multi-Contact Disambiguation
     elif any(k in t for k in ["whatsapp", "wa", "sms", "message", "kaho", "bolo", "chat"]):
         name_match = re.search(r'([a-zA-Z0-9_\s]+?)\s+(?:ko|par|per|kaho|bolo)\b', t)
         target_name = name_match.group(1).strip() if name_match else ""
@@ -299,10 +317,10 @@ if user_input:
                 options.append({"name": f"{m['name']} ({m['number']})", "url": wa_url})
         else:
             wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(msg_text)}"
-            ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp khola ja raha hai."
+            ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp open kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # CASE C: General Conversation
+    # 3. General AI Conversation
     else:
         ai_reply = generate_ai_text(user_input)
 
