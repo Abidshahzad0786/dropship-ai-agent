@@ -453,4 +453,31 @@ if user_input:
         elif len(matches) > 1:
             ai_reply = f"Aapki phonebook mein **'{target_name.capitalize()}'** naam ke **{len(matches)} log** hain. Kis ko bhejna hai?"
             for m in matches:
-                wa_url = f"https://api.whatsapp.com/send?phone={m['number']}&tex
+                wa_url = f"https://api.whatsapp.com/send?phone={m['number']}&text={urllib.parse.quote(msg_text)}"
+                options.append({"name": f"{m['name']} ({m['number']})", "url": wa_url})
+        else:
+            wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(msg_text)}"
+            ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
+            options.append({"name": "WhatsApp Launch", "url": wa_url})
+
+    # 4. HIGH-INTELLIGENCE GENERAL CONVERSATION
+    else:
+        with st.spinner("AI soch raha hai..."):
+            ai_reply = generate_ai_response(user_input, current_messages)
+
+    # Display Output
+    st.markdown(f"<div class='chat-bubble-ai'>✨ {ai_reply}</div>", unsafe_allow_html=True)
+    if generated_img:
+        st.image(generated_img, caption="FLUX.1 Photorealistic Output", use_container_width=True)
+    if options:
+        st.markdown("<div style='clear:both; padding-top:6px;'>", unsafe_allow_html=True)
+        for opt in options:
+            st.markdown(f"<a href='{opt['url']}' target='_blank' class='action-card'>🟢 Open WhatsApp: {opt['name']}</a>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    current_messages.append({
+        "role": "assistant",
+        "content": ai_reply,
+        "image_url": generated_img,
+        "options": options
+    })
