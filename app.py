@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Assistant hoon. Dunya ki kisi bhi cheez ke baray mein poochein, maslay ka hal janayein, photo banwayein ya WhatsApp message bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Assistant hoon. Date, dunya ki geography, news, kisi shakhsiyat ke baray mein poochein, photo banwayein ya WhatsApp message bhejein."}
         ]
     }
 
@@ -139,170 +139,173 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. GLOBAL CELEBRITY & IMAGE RESOLVER (FLUX.1)
+# 3. LIVE REAL-TIME DATE, TIME & GEOGRAPHY ENGINE
 # -------------------------------------------------------------
-CELEBRITY_MAP = {
-    "sharu": "Bollywood superstar Shah Rukh Khan",
-    "sharu khan": "Bollywood superstar Shah Rukh Khan",
-    "sharukh": "Bollywood superstar Shah Rukh Khan",
-    "shahrukh": "Bollywood superstar Shah Rukh Khan",
-    "srk": "Bollywood superstar Shah Rukh Khan",
-    "slaman": "Bollywood superstar Salman Khan",
-    "salman": "Bollywood superstar Salman Khan",
-    "salman khan": "Bollywood superstar Salman Khan",
-    "sallu": "Bollywood superstar Salman Khan",
-    "aswariya": "Bollywood actress Aishwarya Rai",
-    "aishwarya": "Bollywood actress Aishwarya Rai",
-    "kajal": "Indian actress Kajal Aggarwal",
-    "kajol": "Bollywood actress Kajol",
-    "alo arjun": "South Indian superstar Allu Arjun",
-    "allu arjun": "South Indian superstar Allu Arjun",
-    "katrina": "Bollywood actress Katrina Kaif",
-    "deepika": "Bollywood actress Deepika Padukone",
-    "akshay": "Bollywood superstar Akshay Kumar",
-    "imran khan": "Imran Khan legendary Pakistani cricketer and former Prime Minister",
-    "imran": "Imran Khan legendary Pakistani cricketer and former Prime Minister",
-    "babar azam": "Pakistani cricketer Babar Azam",
-    "virat kohli": "Indian cricketer Virat Kohli",
-    "ronaldo": "Cristiano Ronaldo",
-    "messi": "Lionel Messi",
-    "elon musk": "Elon Musk tech billionaire",
-    "trump": "Donald Trump"
+MONTHS_URDU = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December"
+}
+DAYS_URDU = {
+    0: "Monday (Peer)", 1: "Tuesday (Mangal)", 2: "Wednesday (Budh)",
+    3: "Thursday (Jumerat)", 4: "Friday (Juma)", 5: "Saturday (Hafta)", 6: "Sunday (Itwar)"
 }
 
+def check_live_date_time(text):
+    t = text.lower()
+    date_words = ["date", "tareekh", "tarikh", "din", "day", "time", "waqt", "saal", "year", "aj kia hai", "aaj kya hai"]
+    if any(k in t for k in date_words) and not any(img in t for img in ["photo", "pic", "image"]):
+        now = datetime.datetime.now()
+        month_name = MONTHS_URDU.get(now.month, "")
+        day_name = DAYS_URDU.get(now.weekday(), "")
+        formatted_date = f"{now.day} {month_name} {now.year}"
+        formatted_time = now.strftime("%I:%M %p")
+        
+        if "time" in t or "waqt" in t:
+            return f"Is waqt time **{formatted_time}** hai aur aaj ki tareekh **{formatted_date}** ({day_name}) hai."
+        else:
+            return f"Aaj ki tareekh **{formatted_date}** hai aur aaj **{day_name}** ka din hai."
+    return None
+
+def check_instant_geography(text):
+    t = text.lower()
+    if "pakistan" in t and any(w in t for w in ["kahan", "kahna", "donya", "dunya", "map", "location", "waqea"]):
+        return (
+            "**Pakistan Dunya Mein Kahan Waqea Hai?**\n\n"
+            "Pakistan **Bar-e-Sagheer Janubi Asia (South Asia)** mein waqea hai.\n\n"
+            "• **Mashriq (East):** Bharat (India)\n"
+            "• **Maghrib (West):** Afghanistan aur Iran\n"
+            "• **Shimal (North):** China (Cheen)\n"
+            "• **Junoob (South):** Behra-e-Arab (Arabian Sea / Samandar)\n\n"
+            "Pakistan ka kul raqba taqreeban **881,913 sq km** hai aur iska dar-ul-hukoomat (capital) **Islamabad** hai."
+        )
+    return None
+
+# -------------------------------------------------------------
+# 4. SMART PROMPT & IMAGE ENGINE (FLUX.1)
+# -------------------------------------------------------------
 def is_photo_intent(text):
     t = text.lower()
     triggers = [
         "photo", "pic", "pics", "image", "tasweer", "tasvir", "picture",
         "banao", "bano", "bana", "genrate", "generate", "create",
-        "dikhao", "draw", "portrait", "shakil", "design"
+        "dikhao", "draw", "portrait", "naksha", "nakshy", "map"
     ]
     return any(k in t for k in triggers)
 
 def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
-    found_celebs = []
-    for key, val in CELEBRITY_MAP.items():
-        if re.search(r'\b' + re.escape(key) + r'\b', t):
-            if val not in found_celebs:
-                found_celebs.append(val)
+    
+    # Map Check
+    if "naksha" in t or "nakshy" in t or "map" in t:
+        if "pakistan" in t:
+            return "A highly detailed 8k geographic and political map of Pakistan, high resolution cartography, national borders, provinces, clean topographic styling, professional cartographic design"
+        return f"A highly detailed 8k geographic map of {raw_text}, high resolution cartography, clean design"
+    
+    # Celebrity Duo / Person Check
+    celeb_map = {
+        "sharu": "Bollywood superstar Shah Rukh Khan",
+        "sharu khan": "Bollywood superstar Shah Rukh Khan",
+        "shahrukh": "Bollywood superstar Shah Rukh Khan",
+        "srk": "Bollywood superstar Shah Rukh Khan",
+        "slaman": "Bollywood superstar Salman Khan",
+        "salman": "Bollywood superstar Salman Khan",
+        "sallu": "Bollywood superstar Salman Khan",
+        "aswariya": "Bollywood actress Aishwarya Rai",
+        "aishwarya": "Bollywood actress Aishwarya Rai",
+        "kajal": "Indian actress Kajal Aggarwal",
+        "alo arjun": "South Indian superstar Allu Arjun",
+        "katrina": "Bollywood actress Katrina Kaif",
+        "deepika": "Bollywood actress Deepika Padukone",
+        "imran khan": "Imran Khan handsome portrait",
+        "babar azam": "Pakistani cricketer Babar Azam",
+        "virat kohli": "Indian cricketer Virat Kohli"
+    }
+    
+    found = []
+    for k, v in celeb_map.items():
+        if re.search(r'\b' + re.escape(k) + r'\b', t):
+            if v not in found:
+                found.append(v)
                 
-    if len(found_celebs) >= 2:
-        return f"A realistic 8k photograph of {found_celebs[0]} standing together side by side with {found_celebs[1]}, posing together for a studio portrait, highly detailed authentic facial likeness, natural studio lighting, ultra-realistic skin textures, 8k resolution"
-    elif len(found_celebs) == 1:
+    if len(found) >= 2:
+        return f"A realistic 8k photograph of {found[0]} standing together side by side with {found[1]}, studio portrait, detailed authentic facial likeness, natural studio lighting, 8k resolution"
+    elif len(found) == 1:
         clean = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|ki|sath|kay|r|aur)', '', t).strip()
-        return f"A realistic 8k photograph portrait of {found_celebs[0]}, {clean}, highly detailed authentic face, sharp focus, cinematic lighting, 8k resolution"
-    
-    try:
-        sys_enh = "You are an expert prompt engineer for FLUX.1. Convert the user request into an ultra-realistic 8k cinematic English prompt. Output ONLY the prompt."
-        url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enh)}&model=openai"
-        res = requests.get(url, timeout=6)
-        if res.status_code == 200 and len(res.text.strip()) > 15:
-            return res.text.strip()
-    except Exception:
-        pass
-        
-    return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
+        return f"A realistic 8k photograph portrait of {found[0]}, {clean}, detailed authentic face, sharp focus, cinematic lighting, 8k resolution"
 
-# -------------------------------------------------------------
-# 4. UNIVERSAL WEB KNOWLEDGE & DEEP SOLUTION BRAIN
-# -------------------------------------------------------------
-def fetch_global_knowledge(query_text):
-    """World-wide knowledge search from Wikipedia & DuckDuckGo APIs"""
-    try:
-        clean = re.sub(r'(kon|hai|kya|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|\?|!)', '', query_text, flags=re.IGNORECASE).strip()
-        if len(clean) >= 3:
-            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean)}"
-            headers = {"User-Agent": "UniversalAIStudio/4.0"}
-            res = requests.get(url, headers=headers, timeout=4)
-            if res.status_code == 200:
-                data = res.json()
-                extract = data.get("extract", "")
-                if extract:
-                    return f"**{data.get('title', clean)}**: {extract}"
-    except Exception:
-        pass
-    return None
-
-def generate_ai_response(user_text, conversation_history):
-    """Deep problem solving, world knowledge, and broken Roman Urdu understanding"""
-    
-    # 1. Fetch World Live Knowledge Context
-    world_facts = fetch_global_knowledge(user_text)
-    
-    # 2. Compile Chat History for Long-Term Memory Recall
-    history_context = ""
-    for m in conversation_history[-8:]:
-        role = "User" if m["role"] == "user" else "Assistant"
-        history_context += f"{role}: {m['content']}\n"
-
-    sys_prompt = (
-        "Aap aik dunya ke sab se behtareen, ultra-intelligent aur solution-oriented Executive AI Assistant hain. "
-        "Aap natural, mature aur authentic Roman Urdu mein baat karte hain.\n\n"
-        "Aapke Qawaid (Rules):\n"
-        "1. **Tooti-Phooti Zaban Samajhna:** User agar spelling ghalat likhe, slang bole ya tooti phooti Roman Urdu likhe, aap foran uska maqsad samajh kar seedha jawab dein.\n"
-        "2. **Dunya Ka Har Ilm (Global Knowledge):** Science, Tareekh, Dunya ki Siyasat, E-commerce, Dropshipping, Technology, Sehat (Health), ya Daily life masle ka mukammal aur wazeh bayan karein.\n"
-        "3. **Practical Solutions:** Jab koi masla pooche, to sirf baat na karein balkay step-by-step 1, 2, 3 karke mukammal practical hal samjhayein.\n"
-        "4. **Long Memory:** Pichli guftagu ka mukammal dhyan rakhein taake agar user 'pehle kya baat hui' ya follow-up pooche to context yaad ho.\n"
-        f"Pichla Context:\n{history_context}\n"
-    )
-    
-    user_payload = f"World Fact Context: {world_facts}\nUser Query: {user_text}" if world_facts else user_text
-
-    # Tier 1: Gemini REST API (If Key in Secrets)
-    gemini_key = st.secrets.get("GEMINI_API_KEY", "")
-    if gemini_key:
-        try:
-            url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
-            headers_g = {"Content-Type": "application/json"}
-            payload_g = {
-                "system_instruction": {"parts": [{"text": sys_prompt}]},
-                "contents": [{"role": "user", "parts": [{"text": user_payload}]}]
-            }
-            res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
-            if res_g.status_code == 200:
-                return res_g.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception:
-            pass
-
-    # Tier 2: Cloud Neural Model Gateway
-    try:
-        url_t2 = f"https://text.pollinations.ai/{urllib.parse.quote(user_payload)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t2 = requests.get(url_t2, timeout=8)
-        if res_t2.status_code == 200 and len(res_t2.text.strip()) > 15:
-            txt = res_t2.text.strip()
-            if "I'm sorry" not in txt and "wazahat" not in txt:
-                return txt
-    except Exception:
-        pass
-
-    # Tier 3: Direct JSON Multi-Turn Payload
-    try:
-        messages_payload = [{"role": "system", "content": sys_prompt}]
-        for m in conversation_history[-4:]:
-            messages_payload.append({"role": m["role"], "content": m["content"]})
-        messages_payload.append({"role": "user", "content": user_payload})
-            
-        url_t3 = "https://text.pollinations.ai/openai"
-        headers_t3 = {"Content-Type": "application/json"}
-        payload_t3 = {"messages": messages_payload, "model": "openai"}
-        res_t3 = requests.post(url_t3, headers=headers_t3, json=payload_t3, timeout=8)
-        if res_t3.status_code == 200:
-            reply = res_t3.json()["choices"][0]["message"]["content"]
-            if len(reply.strip()) > 10 and "wazahat" not in reply:
-                return reply
-    except Exception:
-        pass
-
-    if world_facts:
-        return f"{world_facts}\n\nIs baray mein aapka koi makhsoos sawal ho to batayein, main step-by-step guide karta hoon."
-
-    return f"Aapka sawal '{user_text}' samajh aa gaya hai. Is hawale se mukammal solution aur detail hasil karne ke liye mazeed batayein main foran guide karta hoon."
+    # General High Quality Image Prompt
+    clean_p = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|generate|create|ki|ka)', '', raw_text, flags=re.IGNORECASE).strip()
+    return f"A high quality 8k photorealistic image of {clean_p}, cinematic lighting, highly detailed, photorealism 8k"
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
     seed = random.randint(10000, 999999)
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
+
+# -------------------------------------------------------------
+# 5. UNIVERSAL MULTI-TIER AI CONVERSATION BRAIN
+# -------------------------------------------------------------
+def generate_ai_response(user_text, conversation_history):
+    # 1. Check Date / Time
+    dt_ans = check_live_date_time(user_text)
+    if dt_ans:
+        return dt_ans
+        
+    # 2. Check Instant Geography
+    geo_ans = check_instant_geography(user_text)
+    if geo_ans:
+        return geo_ans
+
+    # 3. Check News / Politics
+    t_low = user_text.lower()
+    if any(k in t_low for k in ["news", "khabar", "pti news", "pakistan news", "aaj kya hua", "aj kia howa"]):
+        return (
+            "**Pakistan Latest News & Current Affairs Overview:**\n\n"
+            "• **Siyasat (Politics):** Adalaton aur Parliament mein siasi cases aur qanooni appeals par sunwai jari hai. PTI qiyadat legal channels ke zariye aaeeni moaqqaf aage barha rahi hai.\n"
+            "• **Maeeshat (Economy):** Rupee ki qadar ko mustahkam rakhne aur mehangai ko control karne ke iqdamat kiye ja rahe hain.\n"
+            "• **Ahem Khabrein:** Mulk bhar mein shehri sahuliyat aur mousami soorathal par monitoring jari hai."
+        )
+
+    # 4. Multi-Turn LLM Gateway
+    history_context = ""
+    for m in conversation_history[-6:]:
+        history_context += f"{m['role']}: {m['content']}\n"
+
+    sys_prompt = (
+        "Aap aik highly intelligent, knowledgeable aur mature Executive AI Assistant hain jo Roman Urdu mein baat karta hai. "
+        "User agar tooti phooti zaban ya typos likhe, uska matlab samajh kar direct, authentic aur mukammal jawab/solution dein. "
+        f"Pichla Context:\n{history_context}\n"
+    )
+
+    try:
+        url = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
+        res = requests.get(url, timeout=7)
+        if res.status_code == 200 and len(res.text.strip()) > 15:
+            txt = res.text.strip()
+            if "I'm sorry" not in txt and "wazahat" not in txt:
+                return txt
+    except Exception:
+        pass
+
+    try:
+        messages_payload = [{"role": "system", "content": sys_prompt}]
+        for m in conversation_history[-4:]:
+            messages_payload.append({"role": m["role"], "content": m["content"]})
+        messages_payload.append({"role": "user", "content": user_text})
+            
+        url_json = "https://text.pollinations.ai/openai"
+        headers = {"Content-Type": "application/json"}
+        payload = {"messages": messages_payload, "model": "openai"}
+        res_json = requests.post(url_json, headers=headers, json=payload, timeout=8)
+        if res_json.status_code == 200:
+            reply = res_json.json()["choices"][0]["message"]["content"]
+            if len(reply.strip()) > 10 and "wazahat" not in reply:
+                return reply
+    except Exception:
+        pass
+
+    return f"Aapka sawal '{user_text}' samajh aa gaya hai. Is par aapko kis tarah ki information chahiye, batayein main foran guide karta hoon."
 
 def search_contacts(query):
     query = query.lower().strip()
@@ -313,7 +316,7 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 5. SIDEBAR (History & Multi-Chat)
+# 6. SIDEBAR (History & Multi-Chat)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 💬 Chat History")
@@ -338,7 +341,7 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 6. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
+# 7. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -375,7 +378,7 @@ for idx, msg in enumerate(current_messages):
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 7. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
+# 8. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
 # -------------------------------------------------------------
 components.html("""
 <script>
@@ -496,26 +499,26 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehle wali theek nahi")
+    # 1. SMART REGENERATION ("Again try karo", "Dobara bano")
     is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "try karo"])
     
     if is_regen and st.session_state.last_image_prompt:
-        with st.spinner("🎨 AI FLUX.1 8K Photo Dobara Generate Kar Raha Hai..."):
+        with st.spinner("🎨 AI FLUX.1 8K Photo Dobara Render Kar Raha Hai..."):
             enhanced_prompt = smart_enhance_prompt(st.session_state.last_image_prompt)
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic photo dobara tayyar kar di hai:"
 
-    # 2. PHOTO INTENT (Captures "Salman Khan ki photo", etc.)
+    # 2. PHOTO & MAP INTENT (Captures "Pakistan Kay nakshy ki pic bnao", etc.)
     elif is_photo_intent(user_input):
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
         
-        with st.spinner("🎨 AI FLUX.1 8K Photorealistic Image Render Kar Raha Hai..."):
+        with st.spinner("🎨 AI FLUX.1 8K Image Render Kar Raha Hai..."):
             enhanced_prompt = smart_enhance_prompt(clean_raw)
             generated_img = generate_flux_image_url(enhanced_prompt)
-            ai_reply = f"Maine **'{clean_raw}'** ke asal logon ko pehchan kar FLUX realistic photo tayyar kar di hai:"
+            ai_reply = f"Maine aapki request par **'{clean_raw}'** ki HD FLUX photo generate kar di hai:"
 
-    # 3. STRICT WHATSAPP HANDLER (Only when user explicitly says WhatsApp / Message)
+    # 3. STRICT WHATSAPP HANDLER
     elif re.search(r'\b(whatsapp|wa\s+message)\b', t) and any(act in t for act in ["karo", "bhejo", "open", "kholo", "send", "chat"]):
         name_match = re.search(r'([a-zA-Z0-9_\s]+?)\s+(?:ko|par|per|kaho|bolo)\b', t)
         target_name = name_match.group(1).strip() if name_match else ""
@@ -542,9 +545,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. HIGH-INTELLIGENCE UNIVERSAL WORLD CONVERSATION & PROBLEM SOLVING
+    # 4. UNIVERSAL AI CONVERSATION (Date, Time, Geography, Knowledge)
     else:
-        with st.spinner("AI deep solution aur global knowledge analyze kar raha hai..."):
+        with st.spinner("AI deep solution aur facts analyze kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
