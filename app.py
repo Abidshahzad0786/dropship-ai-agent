@@ -8,7 +8,7 @@ import datetime
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & CLEAN WHATSAPP/STUDIO THEME
+# 1. PAGE CONFIGURATION & FIXED-BOTTOM CSS
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="AI Studio Copilot",
@@ -24,11 +24,14 @@ st.markdown("""
         color: #1F1F1F; 
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    
+    /* Chat area padding so messages never hide behind bottom dock */
     .main .block-container {
         padding-top: 15px;
-        padding-bottom: 120px;
+        padding-bottom: 180px !important;
         max-width: 850px;
     }
+    
     .chat-bubble-user {
         background-color: #E7F8EC;
         border: 1px solid #C2E7CB;
@@ -63,6 +66,37 @@ st.markdown("""
         text-decoration: none;
         box-shadow: 0 3px 8px rgba(37,211,102,0.3);
     }
+    
+    /* 💥 FORCE TOOLS BAR DIRECTLY TO THE BOTTOM ABOVE INPUT BOX 💥 */
+    div[data-testid="stHorizontalBlock"]:has(button) {
+        position: fixed !important;
+        bottom: 80px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 92% !important;
+        max-width: 800px !important;
+        margin: 0 auto !important;
+        z-index: 99999 !important;
+        background: #FFFFFF !important;
+        padding: 6px 12px !important;
+        border-radius: 16px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+        display: flex !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+    }
+    
+    /* Style the popover buttons to be compact and sleek */
+    div[data-testid="stHorizontalBlock"] button {
+        background-color: #F1F5F9 !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #334155 !important;
+        border-radius: 20px !important;
+        padding: 4px 10px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -72,7 +106,7 @@ st.markdown("""
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Copilot hoon. Neeche tools se photo banwayein, modify karein, ya WhatsApp messages bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka AI Copilot hoon. Neeche tools se photo banwayein ya WhatsApp messages bhejein."}
         ]
     }
 
@@ -91,7 +125,7 @@ def generate_ai_text(prompt_text):
             return res.text.strip()
     except Exception:
         pass
-    return "Main aapka AI Studio Assistant hoon. Batayein photo banwani hai ya koi aur kaam karna hai?"
+    return "Main aapka AI Assistant hoon. Batayein kya kaam karna hai?"
 
 def generate_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
@@ -118,7 +152,7 @@ with st.sidebar:
         st.rerun()
 
 # -------------------------------------------------------------
-# 5. MAIN CHAT DISPLAY
+# 5. MAIN CHAT DISPLAY (Active Session Only)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:10px;'><h3 style='margin:0;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -143,15 +177,13 @@ for msg in current_messages:
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. BOTTOM TOOLS & VOICE BAR (Right Next to Typing Box)
+# 6. FIXED BOTTOM TOOLS BAR (Right Above Message Typing Box)
 # -------------------------------------------------------------
-st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-
 col_tools, col_mod, col_voice = st.columns([1, 1, 1])
 
 # Tool 1: AI Photo Generator Popover
 with col_tools:
-    with st.popover("🎨 Photo Generator", use_container_width=True):
+    with st.popover("🎨 Photo", use_container_width=True):
         photo_prompt = st.text_input("Kaisi photo banwani hai?", placeholder="e.g. Luxury gold watch")
         if st.button("✨ Create Photo", use_container_width=True):
             if photo_prompt:
@@ -165,9 +197,9 @@ with col_tools:
 
 # Tool 2: Modify Uploaded Photo Popover
 with col_mod:
-    with st.popover("📎 Modify Photo", use_container_width=True):
+    with st.popover("📎 Modify", use_container_width=True):
         up_file = st.file_uploader("Phone se photo upload karein:", type=["jpg", "png", "jpeg"])
-        mod_text = st.text_input("Is mein kya change karna hai?", placeholder="e.g. Background change karo")
+        mod_text = st.text_input("Is mein kya change karna hai?", placeholder="e.g. Background dark karo")
         if up_file and st.button("🪄 Apply Changes", use_container_width=True):
             img_url = generate_image_url(f"Studio modification: {mod_text}, high resolution commercial look")
             current_messages.append({
@@ -177,16 +209,16 @@ with col_mod:
             })
             st.rerun()
 
-# Tool 3: Live Voice Mic
+# Tool 3: Live Voice Mic Popover
 with col_voice:
-    with st.popover("🎙️ Voice Mic", use_container_width=True):
+    with st.popover("🎙️ Voice", use_container_width=True):
         st.caption("Mic dabayein aur bolein:")
         components.html("""
         <div style="display:flex; flex-direction:column; align-items:center; gap:8px; font-family:sans-serif;">
-            <button id="vBtn" onclick="runVoice()" style="background:#2563EB; color:white; border:none; border-radius:50%; width:50px; height:50px; font-size:22px; cursor:pointer; box-shadow:0 3px 8px rgba(37,99,235,0.4);">
+            <button id="vBtn" onclick="runVoice()" style="background:#2563EB; color:white; border:none; border-radius:50%; width:45px; height:45px; font-size:20px; cursor:pointer; box-shadow:0 3px 8px rgba(37,99,235,0.4);">
                 🎙️
             </button>
-            <span id="vTxt" style="font-size:12px; color:#475569; text-align:center;">Mic dabayein aur bolna shuru karein...</span>
+            <span id="vTxt" style="font-size:11px; color:#475569; text-align:center;">Mic dabayein aur bolein...</span>
         </div>
         <script>
             let rec;
@@ -227,7 +259,7 @@ with col_voice:
                 }
             }
         </script>
-        """, height=100)
+        """, height=90)
 
 # -------------------------------------------------------------
 # 7. TYPING INPUT BOX (Bottom SMS Input)
