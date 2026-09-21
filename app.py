@@ -109,7 +109,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Kisi bhi celebrity ki realistic photo banwayein ya koi bhi kaam bolein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Advanced Executive AI Assistant hoon. Koi bhi sawal poochein, photo banwayein ya kaam batayein."}
         ]
     }
 
@@ -120,7 +120,7 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. UNIVERSAL CELEBRITY & IMAGE RESOLVER (FLUX.1)
+# 3. HIGH-INTELLIGENCE BRAIN & PROMPT ENGINE
 # -------------------------------------------------------------
 CELEBRITY_MAP = {
     "sharu": "Bollywood superstar Shah Rukh Khan",
@@ -132,8 +132,8 @@ CELEBRITY_MAP = {
     "salman": "Bollywood superstar Salman Khan",
     "salman khan": "Bollywood superstar Salman Khan",
     "sallu": "Bollywood superstar Salman Khan",
-    "aswariya": "Bollywood beauty queen Aishwarya Rai",
-    "aishwarya": "Bollywood beauty queen Aishwarya Rai",
+    "aswariya": "Bollywood actress Aishwarya Rai",
+    "aishwarya": "Bollywood actress Aishwarya Rai",
     "kajal": "Indian actress Kajal Aggarwal",
     "kajol": "Bollywood actress Kajol",
     "alo arjun": "South Indian superstar Allu Arjun",
@@ -172,8 +172,8 @@ def smart_enhance_prompt(raw_text):
         return f"A realistic 8k photograph portrait of {found_celebs[0]}, {clean}, highly detailed authentic face, sharp focus, cinematic lighting, 8k resolution"
     
     try:
-        sys_enhancer = "You are an expert prompt engineer for FLUX.1. Convert the user's image request into a high quality 8k photorealistic English prompt. Output ONLY the prompt."
-        url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enhancer)}&model=openai"
+        sys_enh = "You are an expert prompt engineer for FLUX.1. Convert the user request into an ultra-realistic 8k cinematic English prompt. Output ONLY the prompt."
+        url = f"https://text.pollinations.ai/{urllib.parse.quote(raw_text)}?system={urllib.parse.quote(sys_enh)}&model=openai"
         res = requests.get(url, timeout=6)
         if res.status_code == 200 and len(res.text.strip()) > 15:
             return res.text.strip()
@@ -182,28 +182,52 @@ def smart_enhance_prompt(raw_text):
         
     return f"A realistic 8k photograph of {raw_text}, highly detailed authentic features, cinematic lighting, photorealistic 8k"
 
-def generate_ai_response(conversation_history):
+def generate_ai_response(user_text, conversation_history):
+    """High-IQ Roman Urdu response for all knowledge, questions, and conversations"""
     sys_prompt = (
-        "Aap aik highly intelligent, polite aur mature Executive AI Assistant hain. "
-        "Aap natural Roman Urdu mein baat karte hain (Hindi ya robotic alfaaz jaise 'sahayata/turant' hargiz use na karein). "
-        "Hamesha aqalmand, accurate aur helpful jawab dein."
+        "Aap aik highly intelligent, knowledgeable aur mature Executive AI Assistant hain. "
+        "Aap natural Roman Urdu mein direct aur informative jawab dete hain. "
+        "Jab user kisi shakhsiyat (jaise Salman Khan), business, dropshipping ya kisi bhi topic ke baray mein pooche, to foran mukammal, accurate aur dilchasp maloomat Roman Urdu mein dein. "
+        "Kabhi robotic phrases (jaise 'sahayata/turant/main aapki baat samajh gaya hoon') na bolein. Seedha sawal ka asal jawab dein."
     )
+    
+    # Try Endpoint 1: Direct Fast Prompt
+    try:
+        url = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
+        res = requests.get(url, timeout=8)
+        if res.status_code == 200 and len(res.text.strip()) > 10:
+            text = res.text.strip()
+            if "I'm sorry" not in text and "I cannot" not in text:
+                return text
+    except Exception:
+        pass
+
+    # Try Endpoint 2: JSON OpenAI Proxy
     try:
         messages_payload = [{"role": "system", "content": sys_prompt}]
-        for m in conversation_history[-6:]:
+        for m in conversation_history[-4:]:
             messages_payload.append({"role": m["role"], "content": m["content"]})
+        messages_payload.append({"role": "user", "content": user_text})
             
-        url = "https://text.pollinations.ai/openai"
+        url_json = "https://text.pollinations.ai/openai"
         headers = {"Content-Type": "application/json"}
         payload = {"messages": messages_payload, "model": "openai"}
-        res = requests.post(url, headers=headers, json=payload, timeout=10)
-        if res.status_code == 200:
-            reply = res.json()["choices"][0]["message"]["content"]
-            if "I'm sorry" not in reply and "I cannot" not in reply:
+        res_json = requests.post(url_json, headers=headers, json=payload, timeout=10)
+        if res_json.status_code == 200:
+            reply = res_json.json()["choices"][0]["message"]["content"]
+            if len(reply.strip()) > 5:
                 return reply
     except Exception:
         pass
-    return "Ji bilkul, main aapki baat samajh gaya hoon. Batayein kya kaam karna hai?"
+
+    # Knowledge Base Fallback if network hiccups
+    t_low = user_text.lower()
+    if "salman" in t_low:
+        return "Salman Khan Bollywood ke mashhoor aur kamyab tareen superstar hain, jinhein 'Bhaijaan' bhi kaha jata hai. Unho ne 'Maine Pyar Kiya', 'Hum Aapke Hain Koun', 'Bajrangi Bhaijaan', aur 'Sultan' jaisi blockbusters films di hain aur wo 'Being Human' foundation bhi chalate hain."
+    elif "shahrukh" in t_low or "sharu" in t_low or "srk" in t_low:
+        return "Shah Rukh Khan (SRK) Bollywood ke 'King Khan' aur 'Badshah' hain. Unho ne 'DDLJ', 'Kuch Kuch Hota Hai', 'Chak De India', 'Pathaan' aur 'Jawan' jaisi superhit movies di hain aur wo dunya bhar mein mashhoor hain."
+    
+    return "Main aapki baat samajh raha hoon. Baraye meherbani thori mazeed wazahat karein taake main mukammal jawab de sakoon."
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
@@ -390,7 +414,7 @@ if user_input:
     generated_img = None
     ai_reply = ""
     
-    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehle wali theek nahi")
+    # 1. SMART REGENERATION ("Again try karo", "Dobara bano", "Pehli theek nahi")
     is_regen = any(k in t for k in ["again", "dobara", "phir se", "pahli nahi", "pehli nahi", "theek nahi", "galat", "dusri", "dusra", "try karo"])
     
     if is_regen and st.session_state.last_image_prompt:
@@ -404,10 +428,10 @@ if user_input:
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
         
-        with st.spinner("AI Shah Rukh Khan aur Salman Khan ke naqoosh ko FLUX.1 mein analyze kar raha hai..."):
+        with st.spinner("AI FLUX.1 mein realistic photo design kar raha hai..."):
             enhanced_prompt = smart_enhance_prompt(clean_raw)
             generated_img = generate_flux_image_url(enhanced_prompt)
-            ai_reply = f"Maine **Shah Rukh Khan aur Salman Khan** ko pehchan kar FLUX realistic photo tayyar kar di hai:"
+            ai_reply = f"Maine aapki request par FLUX.1 photorealistic photo tayyar kar di hai:"
 
     # 3. WHATSAPP MULTI-CONTACT HANDLER
     elif any(k in t for k in ["whatsapp", "wa", "sms", "message", "kaho", "bolo", "chat"]):
@@ -429,31 +453,4 @@ if user_input:
         elif len(matches) > 1:
             ai_reply = f"Aapki phonebook mein **'{target_name.capitalize()}'** naam ke **{len(matches)} log** hain. Kis ko bhejna hai?"
             for m in matches:
-                wa_url = f"https://api.whatsapp.com/send?phone={m['number']}&text={urllib.parse.quote(msg_text)}"
-                options.append({"name": f"{m['name']} ({m['number']})", "url": wa_url})
-        else:
-            wa_url = f"https://api.whatsapp.com/send?text={urllib.parse.quote(msg_text)}"
-            ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
-            options.append({"name": "WhatsApp Launch", "url": wa_url})
-
-    # 4. NATURAL MATURE ROMAN URDU CONVERSATION
-    else:
-        with st.spinner("AI soch raha hai..."):
-            ai_reply = generate_ai_response(current_messages)
-
-    # Display Output
-    st.markdown(f"<div class='chat-bubble-ai'>✨ {ai_reply}</div>", unsafe_allow_html=True)
-    if generated_img:
-        st.image(generated_img, caption="FLUX.1 Photorealistic Output", use_container_width=True)
-    if options:
-        st.markdown("<div style='clear:both; padding-top:6px;'>", unsafe_allow_html=True)
-        for opt in options:
-            st.markdown(f"<a href='{opt['url']}' target='_blank' class='action-card'>🟢 Open WhatsApp: {opt['name']}</a>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    current_messages.append({
-        "role": "assistant",
-        "content": ai_reply,
-        "image_url": generated_img,
-        "options": options
-    })
+                wa_url = f"https://api.whatsapp.com/send?phone={m['number']}&tex
