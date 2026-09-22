@@ -15,8 +15,8 @@ from PIL import Image
 # 1. PAGE CONFIGURATION & WHATSAPP THEME
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="Universal AI Master Copilot",
-    page_icon="👑",
+    page_title="Google AI Studio Super Copilot",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Master AI Copilot hoon. Sehat (Health), coding, business, dunya ki geography, photo generation ya WhatsApp control—kuch bhi bolein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Google AI Studio Copilot hoon. Burj Khalifa, dunya ki geography, science, coding, photo generation ya WhatsApp control—jo chahein poochein."}
         ]
     }
 
@@ -138,158 +138,148 @@ if "active_chat" not in st.session_state:
 if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
-# -------------------------------------------------------------
-# 3. LIVE REAL-TIME DATE, TIME & TIMEZONES
-# -------------------------------------------------------------
-MONTHS_URDU = {
-    1: "January", 2: "February", 3: "March", 4: "April",
-    5: "May", 6: "June", 7: "July", 8: "August",
-    9: "September", 10: "October", 11: "November", 12: "December"
-}
-DAYS_URDU = {
-    0: "Monday (Peer)", 1: "Tuesday (Mangal)", 2: "Wednesday (Budh)",
-    3: "Thursday (Jumerat)", 4: "Friday (Juma)", 5: "Saturday (Hafta)", 6: "Sunday (Itwar)"
-}
+if "custom_gemini_key" not in st.session_state:
+    st.session_state.custom_gemini_key = st.secrets.get("GEMINI_API_KEY", "")
 
-def get_live_time_and_date(text):
-    t = text.lower()
-    time_words = ["time", "waqt", "date", "tareekh", "tarikh", "din", "day", "saal", "year", "aj kia", "aaj kya"]
-    
-    if any(k in t for k in time_words) and not any(img in t for img in ["photo", "pic", "image"]):
-        now = datetime.datetime.now()
-        month_name = MONTHS_URDU.get(now.month, "")
-        day_name = DAYS_URDU.get(now.weekday(), "")
-        formatted_date = f"{now.day} {month_name} {now.year}"
-        local_time = now.strftime("%I:%M %p")
+# -------------------------------------------------------------
+# 3. DIRECT GOOGLE AI STUDIO (GEMINI FLASH) ENGINE
+# -------------------------------------------------------------
+MASTER_SYSTEM_PROMPT = """
+Aap Google AI Studio ke official Gemini Intelligence Engine par mabni aik World-Class Executive AI Assistant hain.
+Aap natural, mature, clear aur accurate Roman Urdu mein baat karte hain.
+
+Aapke Qawaid:
+1. Dunya ki kisi bhi shakhsiyat, building (jaise Burj Khalifa), geography, science, history, coding, business, health ya dunya ke kisi bhi sawal ka 100% verified, encyclopedic aur logical jawab dein.
+2. Kabhi generic lines ya 'main samajh gaya hoon' jaise bekaar jumlay na bolein. Seedha asal aur mukammal jawab dein.
+3. User agar tooti phooti zaban ya spelling mistake kare (e.g. 'burj khalifa kahna hai'), uska maqsad foran samajh kar jawab dein.
+"""
+
+def query_gemini_api(user_text, conversation_history, api_key):
+    """Google Gemini Direct REST API (Supports all Key Formats)"""
+    if not api_key:
+        return None
         
-        if "america" in t or "usa" in t or "us" in t:
-            us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
-            us_pst = (now - datetime.timedelta(hours=12)).strftime("%I:%M %p")
-            return f"America mein mukhtalif timezones hain:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
-        elif "dubai" in t or "uae" in t:
-            dubai_time = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
-            return f"Dubai / UAE mein is waqt time **{dubai_time}** ho raha hai."
-        elif "time" in t or "waqt" in t:
-            return f"Is waqt time **{local_time}** hai aur aaj **{formatted_date}** ({day_name}) hai."
-        else:
-            return f"Aaj ki tareekh **{formatted_date}** hai aur din **{day_name}** hai."
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    # Format messages
+    contents = []
+    for m in conversation_history[-6:]:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": m["content"]}]})
+    contents.append({"role": "user", "parts": [{"text": user_text}]})
+    
+    payload = {
+        "system_instruction": {"parts": [{"text": MASTER_SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 2048
+        }
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key.strip()
+    }
+    
+    for mod in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent"
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception:
+            continue
     return None
 
 # -------------------------------------------------------------
-# 4. UNIVERSAL EXPERT ADVISOR (Health, Coding, Business, Geography)
+# 4. INSTANT WORLD KNOWLEDGE & BACKUP ENGINE
 # -------------------------------------------------------------
-def get_expert_direct_solution(text):
-    """Har qisam ke aam ya medical maslay ka fori expert solution"""
+def get_instant_world_knowledge(text):
     t = text.lower()
     
-    # 1. Daant (Teeth) Kharab / Pain / Cavity
-    if any(k in t for k in ["dant", "dany", "daant", "teeth", "tooth", "keeda"]):
+    # Burj Khalifa
+    if "burj khalifa" in t:
         return (
-            "**Daant (Teeth) Kharab Hon Ya Dard Ho To Yeh Karein:**\n\n"
-            "1. **Fori Gharelu Ilaj (Home Relief):**\n"
-            "   • **Neem Garam Pani + Namak:** Aik cup neem garam pani mein aadha chamach namak mila kar din mein 3 martaba kulla (rinse) karein. Yeh bacteria ko maarta hai.\n"
-            "   • **Laung (Clove):** Dard wali jagah par aik laung dabayein ya laung ka tail (clove oil) lagayein, yeh foran dard theek karta hai.\n\n"
-            "2. **Dentist Ka Checkup:**\n"
-            "   • Agar keeda (cavity) laga hai to dentist se **Filling** karwayein.\n"
-            "   • Agar dard shadeed hai aur jaron tak infection hai to **Root Canal (RCT)** zaroori hota hai.\n\n"
-            "3. **Safai Aur Parhaiz:**\n"
-            "   • Din mein 2 martaba (subha aur raat sonay se pehle) 2 minute achi tarah brush karein.\n"
-            "   • Zyada meethi cheezein, cold drinks aur sakht cheezon se parhaiz karein."
+            "**Burj Khalifa Dunya Mein Kahan Waqea Hai?**\n\n"
+            "**Burj Khalifa** dunya ki sab se unchi imarat (tallest skyscraper) hai jo **Dubai, United Arab Emirates (UAE)** mein waqea hai.\n\n"
+            "• **Unchayi (Height):** **828 meters (2,717 feet)** — iski kul **163 manzilein (floors)** hain.\n"
+            "• **Makhsoos Maqam:** Yeh Downtown Dubai mein Dubai Mall aur Dubai Fountain ke bilkul sath waqea hai.\n"
+            "• **Iftitah (Opening):** Iska iftitah **4 January 2010** ko UAE ke Prime Minister Sheikh Mohammed bin Rashid Al Maktoum ne kiya tha."
         )
 
-    # 2. Sir Dard (Headache)
-    if any(k in t for k in ["sir dard", "sar dard", "headache", "migraine"]):
-        return (
-            "**Sir Dard (Headache) Ka Asan Aur Fori Hal:**\n\n"
-            "1. **Pani Piyein:** Aksar sir dard pani ki kami (dehydration) se hota hai. Foran 2 gilaas taza pani piyein.\n"
-            "2. **Andhere Kamray Mein Aaram:** Screen (mobile/laptop) band karke 15 se 20 minute ankhein band karke aaram karein.\n"
-            "3. **Gardan Ki Massage:** Gardan aur mathey par thoda sa balm ya tel laga kar halke hath se massage karein.\n"
-            "4. **Adrak Wali Chai ya Qahwa:** Aik cup adrak (ginger) wali chai piyein, yeh blood circulation behtar karti hai."
-        )
+    # Time & Date
+    time_words = ["time", "waqt", "date", "tareekh", "tarikh", "din", "day", "aj kia", "aaj kya"]
+    if any(k in t for k in time_words) and not any(img in t for img in ["photo", "pic", "image"]):
+        now = datetime.datetime.now()
+        months = {1:"January", 2:"February", 3:"March", 4:"April", 5:"May", 6:"June", 7:"July", 8:"August", 9:"September", 10:"October", 11:"November", 12:"December"}
+        days = {0:"Monday (Peer)", 1:"Tuesday (Mangal)", 2:"Wednesday (Budh)", 3:"Thursday (Jumerat)", 4:"Friday (Juma)", 5:"Saturday (Hafta)", 6:"Sunday (Itwar)"}
+        dt_str = f"{now.day} {months.get(now.month,'')} {now.year}"
+        if "america" in t:
+            us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
+            return f"America (New York / Eastern Time) mein is waqt taqreeban **{us_est}** ho raha hai."
+        elif "dubai" in t or "uae" in t:
+            d_t = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
+            return f"Dubai / UAE mein is waqt time **{d_t}** ho raha hai."
+        return f"Is waqt time **{now.strftime('%I:%M %p')}** hai aur aaj ki tareekh **{dt_str}** ({days.get(now.weekday(),'')}) hai."
 
-    # 3. Dropshipping & Business Guidance
-    if any(k in t for k in ["dropshipping", "shopify", "tiktok shop", "ecommerce", "online business"]):
-        return (
-            "**Dropshipping / Online Business Shuru Karne Ka Complete Roadmap:**\n\n"
-            "1. **Winning Product:** TikTok Creative Center ya CJ Dropshipping par wo product dhoondein jo problem solve karti ho aur trend mein ho.\n"
-            "2. **Store Setup:** Shopify ya TikTok Shop par clean aur professional store banayein.\n"
-            "3. **Supplier:** CJ Dropshipping ya Ali-Express se fast shipping wala supplier connect karein.\n"
-            "4. **Marketing (Ads):** TikTok aur Facebook par short engaging video ads chalayein (Hook -> Problem -> Solution -> CTA).\n"
-            "5. **Profit Margin:** Product price aisi rakhein jismein ad cost nikaal kar kam az kam **30% se 40% net profit** bache."
-        )
-
-    # 4. Philippines & World Geography
+    # Philippines
     if "philippines" in t:
         return (
             "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
             "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein Pacific Ocean ke maghribi hissay mein waqea hai.\n\n"
-            "• **Islands:** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
-            "• **Capital:** **Manila** hai.\n"
-            "• **Aas Paas:** Iske maghrib mein South China Sea aur Vietnam hai, aur junoob mein Indonesia/Malaysia hain."
+            "• **Jazair (Islands):** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
+            "• **Capital:** **Manila** hai."
         )
 
-    if "america" in t and any(k in t for k in ["kahan", "kahna", "location"]):
+    # Health / Teeth
+    if any(k in t for k in ["dant", "dany", "daant", "teeth", "tooth"]):
         return (
-            "**America (USA) Dunya Mein Kahan Waqea Hai?**\n\n"
-            "America **Shimali America (North America)** mein waqea hai.\n\n"
-            "• **Shimal (North):** Canada ke sath border hai.\n"
-            "• **Junoob (South):** Mexico aur Gulf of Mexico hai.\n"
-            "• **Mashriq (East):** Atlantic Ocean hai.\n"
-            "• **Maghrib (West):** Pacific Ocean hai.\n\n"
-            "Iska capital **Washington, D.C.** hai aur iski kul **50 states** hain."
+            "**Daant (Teeth) Kharab Hon Ya Dard Ho To Yeh Karein:**\n\n"
+            "1. **Neem Garam Namak Ka Pani:** 1 cup neem garam pani mein namak mila kar din mein 3 dafa kulla (rinse) karein.\n"
+            "2. **Laung (Clove):** Dard wali jagah par laung dabayein ya laung ka tail lagayein.\n"
+            "3. **Dentist Checkup:** Agar keeda laga hai to Filling karwayein, zyada kharab ho to Root Canal (RCT) karwayein."
         )
 
     return None
 
-# -------------------------------------------------------------
-# 5. UNIVERSAL MULTI-LAYER AI BRAIN
-# -------------------------------------------------------------
-def fetch_wikipedia_knowledge(clean_topic):
+def fetch_wikipedia_live(query_text):
     try:
-        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_topic)}"
-        headers = {"User-Agent": "UniversalMasterCopilot/7.0"}
-        res = requests.get(url, headers=headers, timeout=4)
-        if res.status_code == 200:
-            data = res.json()
-            return data.get("extract", "")
+        clean = re.sub(r'(kon|hai|kya|kia|batao|who|is|what|h|wo|kaise|\?|!)', '', query_text, flags=re.IGNORECASE).strip()
+        if len(clean) >= 3:
+            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean)}"
+            headers = {"User-Agent": "GoogleAIStudioBot/6.0"}
+            res = requests.get(url, headers=headers, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                return data.get("extract", "")
     except Exception:
         pass
     return None
 
 def generate_ai_response(user_text, conversation_history):
-    # 1. Live Time Check
-    time_res = get_live_time_and_date(user_text)
-    if time_res:
-        return time_res
+    # Step 1: Instant Direct Knowledge
+    instant_ans = get_instant_world_knowledge(user_text)
+    if instant_ans:
+        return instant_ans
 
-    # 2. Expert Direct Advisor Check (Health, Math, Geography, Business)
-    advisor_res = get_expert_direct_solution(user_text)
-    if advisor_res:
-        return advisor_res
+    # Step 2: Google Gemini Official Engine
+    active_key = st.session_state.custom_gemini_key or st.secrets.get("GEMINI_API_KEY", "")
+    if active_key:
+        gemini_reply = query_gemini_api(user_text, conversation_history, active_key)
+        if gemini_reply:
+            return gemini_reply
 
-    # 3. Live Web Knowledge Fetch
-    extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|main|mein|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
-    live_info = ""
-    if len(extracted_topic) >= 3:
-        live_info = fetch_wikipedia_knowledge(extracted_topic) or ""
+    # Step 3: Live Wikipedia Knowledge Context
+    extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|who|is|what|h|wo|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
+    live_info = fetch_wikipedia_live(user_text) or ""
 
-    # 4. Multi-turn history context
-    history_context = ""
-    for m in conversation_history[-6:]:
-        history_context += f"{m['role']}: {m['content']}\n"
-
-    sys_prompt = (
-        "Aap dunya ke sab se intelligent, mature aur solution-oriented Executive AI Assistant hain. "
-        "Aap Roman Urdu mein direct, informative aur insano jaisa tafseeli jawab dete hain.\n"
-        f"Fact Reference: {live_info}\n"
-        f"Pichla Context:\n{history_context}\n"
-        "User agar tooti phooti zaban ya spelling mistake kare, uska matlab samajh kar mukammal step-by-step practical hal samjhayein."
-    )
-
-    # Multi-Tier LLM Router
+    # Step 4: Open Cloud LLM Gateway
+    sys_prompt = f"{MASTER_SYSTEM_PROMPT}\nLive Fact Reference: {live_info}"
     try:
         url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t = requests.get(url_t, timeout=7)
+        res_t = requests.get(url_t, timeout=8)
         if res_t.status_code == 200 and len(res_t.text.strip()) > 15:
             txt = res_t.text.strip()
             if "I'm sorry" not in txt:
@@ -297,32 +287,13 @@ def generate_ai_response(user_text, conversation_history):
     except Exception:
         pass
 
-    gemini_key = st.secrets.get("GEMINI_API_KEY", "")
-    if gemini_key:
-        try:
-            url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
-            headers_g = {"Content-Type": "application/json"}
-            payload_g = {
-                "system_instruction": {"parts": [{"text": sys_prompt}]},
-                "contents": [{"role": "user", "parts": [{"text": user_text}]}]
-            }
-            res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
-            if res_g.status_code == 200:
-                return res_g.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception:
-            pass
-
     if live_info:
-        return f"**{extracted_topic.title()}** ke hawale se tafseel:\n\n{live_info}"
+        return f"**{extracted_topic.title()}** ke hawale se mukammal maloomat:\n\n{live_info}"
 
-    return (
-        f"Aapne **'{user_text}'** ke baray mein poocha hai.\n\n"
-        "Main is maslay par mukammal rehn обра ya strategy provide kar sakta hoon. "
-        "Baraye meherbani batayein ke aapko is hawale se makhsoos tareeqa-e-kar chahiye ya koi khas sawal hai?"
-    )
+    return f"Main aapke sawal '{user_text}' par mukammal maloomat faraham kar sakta hoon. Baraye meherbani thori mazeed wazahat karein."
 
 # -------------------------------------------------------------
-# 6. SMART PROMPT & IMAGE ENGINE (FLUX.1)
+# 5. SMART PROMPT & IMAGE ENGINE (FLUX.1)
 # -------------------------------------------------------------
 def is_photo_intent(text):
     t = text.lower()
@@ -337,11 +308,11 @@ def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
     
     if any(c in t for c in ["couple", "larka larki", "romantic"]):
-        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, romantic aesthetic lighting, high detail faces, 8k resolution"
+        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, warm aesthetic lighting, detailed faces, 8k resolution"
     
     if "naksha" in t or "map" in t:
         if "china" in t:
-            return "A clean detailed National Geographic style map of China, accurate borders, major cities, 8k cartography"
+            return "A clean detailed National Geographic style political and geographic map of China, accurate country borders, major cities, 8k cartography"
         elif "pakistan" in t:
             return "A clean detailed National Geographic style map of Pakistan, accurate borders, 8k cartography"
         return f"A detailed National Geographic style map of {raw_text}, 8k"
@@ -381,9 +352,16 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 7. SIDEBAR (History & Multi-Chat)
+# 6. SIDEBAR (Google AI Studio Key & History)
 # -------------------------------------------------------------
 with st.sidebar:
+    st.markdown("### ⚙️ Google AI Studio Engine")
+    input_key = st.text_input("🔑 Gemini API Key (Optional):", value=st.session_state.custom_gemini_key, type="password", placeholder="Paste AI Studio Key...")
+    if input_key != st.session_state.custom_gemini_key:
+        st.session_state.custom_gemini_key = input_key
+        st.success("✅ Google Gemini Connected!")
+
+    st.markdown("---")
     st.markdown("### 💬 Chat History")
     if st.button("➕ New Chat (Fresh Start)", use_container_width=True, type="primary"):
         new_id = f"Chat {len(st.session_state.chat_sessions) + 1} ({datetime.datetime.now().strftime('%H:%M')})"
@@ -406,7 +384,7 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 8. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
+# 7. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -427,7 +405,7 @@ for idx, msg in enumerate(current_messages):
         st.markdown(f"""
         <div class='chat-bubble-ai'>
             <div class='msg-header'>
-                <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Master AI Copilot</span>
+                <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Gemini AI Copilot</span>
                 <button onclick="{copy_js}" title="Copy Message" class="dots-menu">⋮</button>
             </div>
             {content}
@@ -443,7 +421,7 @@ for idx, msg in enumerate(current_messages):
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 9. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
+# 8. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
 # -------------------------------------------------------------
 components.html("""
 <script>
@@ -610,9 +588,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. UNIVERSAL MASTER ADVISOR & KNOWLEDGE
+    # 4. GOOGLE GEMINI DEEP REASONING & KNOWLEDGE
     else:
-        with st.spinner("AI deep solution aur facts analyze kar raha hai..."):
+        with st.spinner("AI Google Gemini se deep analysis kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
@@ -622,7 +600,7 @@ if user_input:
     st.markdown(f"""
     <div class='chat-bubble-ai'>
         <div class='msg-header'>
-            <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Master AI Copilot</span>
+            <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Gemini AI Copilot</span>
             <button onclick="{copy_js_now}" title="Copy Message" class="dots-menu">⋮</button>
         </div>
         {ai_reply}
