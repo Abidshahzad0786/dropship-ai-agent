@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Copilot hoon. Dunya ki geography, science, history, words meanings ya koi bhi sawal poochein, photo banwayein ya WhatsApp message bhejein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Copilot hoon. Date, time, dunya ki geography, science, word meanings ya photo generation ke baray mein poochein."}
         ]
     }
 
@@ -139,13 +139,53 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. KNOWLEDGE DICTIONARY & LIVE WIKIPEDIA FETCHER
+# 3. LIVE REAL-TIME DATE, TIME & TIMEZONE ENGINE
+# -------------------------------------------------------------
+MONTHS_URDU = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December"
+}
+DAYS_URDU = {
+    0: "Monday (Peer)", 1: "Tuesday (Mangal)", 2: "Wednesday (Budh)",
+    3: "Thursday (Jumerat)", 4: "Friday (Juma)", 5: "Saturday (Hafta)", 6: "Sunday (Itwar)"
+}
+
+def get_live_time_and_date(text):
+    t = text.lower()
+    time_words = ["time", "waqt", "date", "tareekh", "tarikh", "din", "day", "saal", "year", "aj kia", "aaj kya"]
+    
+    if any(k in t for k in time_words) and not any(img in t for img in ["photo", "pic", "image"]):
+        now = datetime.datetime.now()
+        month_name = MONTHS_URDU.get(now.month, "")
+        day_name = DAYS_URDU.get(now.weekday(), "")
+        formatted_date = f"{now.day} {month_name} {now.year}"
+        local_time = now.strftime("%I:%M %p")
+        
+        # World Timezones
+        if "america" in t or "usa" in t or "us" in t:
+            us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
+            us_pst = (now - datetime.timedelta(hours=12)).strftime("%I:%M %p")
+            return f"America mein mukhtalif timezones hain:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
+        elif "dubai" in t or "uae" in t or "gulf" in t:
+            dubai_time = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
+            return f"Dubai / UAE mein is waqt time **{dubai_time}** ho raha hai."
+        elif "london" in t or "uk" in t or "england" in t:
+            uk_time = (now - datetime.timedelta(hours=4)).strftime("%I:%M %p")
+            return f"London / UK mein is waqt time **{uk_time}** ho raha hai."
+        elif "time" in t or "waqt" in t:
+            return f"Is waqt time **{local_time}** hai aur aaj ki tareekh **{formatted_date}** ({day_name}) hai."
+        else:
+            return f"Aaj ki tareekh **{formatted_date}** hai aur aaj **{day_name}** ka din hai."
+    return None
+
+# -------------------------------------------------------------
+# 4. UNIVERSAL SMART REASONING & QUESTION ANSWER ENGINE
 # -------------------------------------------------------------
 def fetch_wikipedia_knowledge(clean_topic):
-    """Wikipedia REST API se 100% verified facts nikalna"""
     try:
         url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_topic)}"
-        headers = {"User-Agent": "UniversalAIStudioBot/5.0 (contact@example.com)"}
+        headers = {"User-Agent": "UniversalAIStudioBot/5.0"}
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
@@ -154,32 +194,20 @@ def fetch_wikipedia_knowledge(clean_topic):
         pass
     return None
 
-def fetch_duckduckgo_instant(query):
-    """DuckDuckGo instant search API"""
-    try:
-        url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(query)}&format=json&no_html=1&skip_disambig=1"
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            abstract = data.get("AbstractText", "")
-            if abstract:
-                return abstract
-    except Exception:
-        pass
-    return None
-
-# -------------------------------------------------------------
-# 4. UNIVERSAL SMART REASONING & QUESTION ANSWER ENGINE
-# -------------------------------------------------------------
 def generate_ai_response(user_text, conversation_history):
     t_low = user_text.lower().strip()
     
-    # 1. Direct Knowledge & Geography Answers
+    # 1. Live Time & Date Check
+    time_ans = get_live_time_and_date(user_text)
+    if time_ans:
+        return time_ans
+
+    # 2. Geography Answers
     if "philippines" in t_low:
         return (
             "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
             "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein waqea aik jazeera numa (archipelago) mulk hai jo Pacific Ocean (Behr-e-Kahin) ke maghribi hissay mein hai.\n\n"
-            "• **Jazair (Islands):** Yeh taqreeban **7,641 jazair (islands)** par mushtamil hai.\n"
+            "• **Jazair (Islands):** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
             "• **Dar-ul-Hukoomat (Capital):** Iska capital **Manila** hai.\n"
             "• **Aas Paas Ke Mumalik:** Iske maghrib mein South China Sea aur Vietnam hai, aur junoob (south) mein Indonesia aur Malaysia hain."
         )
@@ -187,11 +215,10 @@ def generate_ai_response(user_text, conversation_history):
     if "studio" in t_low and ("matlab" in t_low or "mtlb" in t_low or "meaning" in t_low or "kya" in t_low or "kia" in t_low):
         return (
             "**Studio Ka Matlab Kya Hota Hai?**\n\n"
-            "**Studio** aik aisi makhsoos jagah ya kamray ko kehte hain jahan fankar (artists) apna professional kaam karte hain:\n\n"
+            "**Studio** aik aisi makhsoos jagah ya kamray ko kehte hain jahan professional aur artistic kaam kiya jata hai:\n\n"
             "1. **Photo Studio:** Jahan professional lighting aur cameras ke sath tasweerein khainchi aur edit ki jati hain.\n"
-            "2. **Music Studio:** Jahan gaane aur aawazein (audio) record hoti hain.\n"
-            "3. **Film/TV Studio:** Jahan dramay, movies aur news bulletins shoot hotay hain.\n\n"
-            "Mukhtasir yeh ke jahan behtareen tools aur lights ke sath koi cheez create ki jaye, usay Studio kehte hain."
+            "2. **Music Studio:** Jahan gaane aur audio record hoti hai.\n"
+            "3. **Film/TV Studio:** Jahan dramay, movies aur news bulletins shoot hotay hain."
         )
 
     if "america" in t_low and any(k in t_low for k in ["kahan", "kahna", "location"]):
@@ -205,13 +232,13 @@ def generate_ai_response(user_text, conversation_history):
             "Iska capital **Washington, D.C.** hai aur iski kul **50 states** hain."
         )
 
-    # 2. Live Fact Search for Any Topic (Google Jaisa Ilm)
+    # 3. Live Fact Search (Wikipedia REST)
     extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|main|mein|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
     live_info = ""
     if len(extracted_topic) >= 3:
-        live_info = fetch_wikipedia_knowledge(extracted_topic) or fetch_duckduckgo_instant(extracted_topic) or ""
+        live_info = fetch_wikipedia_knowledge(extracted_topic) or ""
 
-    # 3. Multi-Turn History
+    # 4. Multi-Turn History
     history_context = ""
     for m in conversation_history[-6:]:
         history_context += f"{m['role']}: {m['content']}\n"
@@ -221,10 +248,9 @@ def generate_ai_response(user_text, conversation_history):
         "Aap Roman Urdu mein direct, informative aur insano jaisa tafseeli jawab dete hain.\n"
         f"Fact Reference: {live_info}\n"
         f"Pichla Context:\n{history_context}\n"
-        "User agar tooti phooti zaban mein bhi pooche, uska matlab samajh kar mukammal step-by-step aur wazeh jawab dein."
+        "User ke sawal ka foran logical aur step-by-step practical jawab dein."
     )
 
-    # 4. Multi-Layer LLM Gateway
     try:
         url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
         res_t = requests.get(url_t, timeout=7)
@@ -235,27 +261,10 @@ def generate_ai_response(user_text, conversation_history):
     except Exception:
         pass
 
-    try:
-        messages_payload = [{"role": "system", "content": sys_prompt}]
-        for m in conversation_history[-4:]:
-            messages_payload.append({"role": m["role"], "content": m["content"]})
-        messages_payload.append({"role": "user", "content": user_text})
-            
-        url_json = "https://text.pollinations.ai/openai"
-        headers = {"Content-Type": "application/json"}
-        payload = {"messages": messages_payload, "model": "openai"}
-        res_json = requests.post(url_json, headers=headers, json=payload, timeout=8)
-        if res_json.status_code == 200:
-            reply = res_json.json()["choices"][0]["message"]["content"]
-            if len(reply.strip()) > 10 and "wazahat" not in reply:
-                return reply
-    except Exception:
-        pass
-
     if live_info:
-        return f"**{extracted_topic.title()}** ke hawale se maloomat:\n\n{live_info}\n\nIs baray mein aapka koi makhsoos sawal ho to batayein main mazeed guide karta hoon."
+        return f"**{extracted_topic.title()}** ke hawale se maloomat:\n\n{live_info}"
 
-    return f"Aapka sawal '{user_text}' mere paas darj ho gaya hai. Is hawale se mukammal solution aur tafseel ke liye batayein main foran guide karta hoon."
+    return f"Aapka sawal '{user_text}' note ho gaya hai. Is hawale se mukammal solution aur detail ke liye batayein main foran guide karta hoon."
 
 # -------------------------------------------------------------
 # 5. SMART PROMPT & IMAGE ENGINE (FLUX.1)
@@ -271,6 +280,10 @@ def is_photo_intent(text):
 
 def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
+    
+    # Couple / Romance Prompt Normalizer (Safe & Photorealistic)
+    if any(c in t for c in ["larka larki", "couple", "boy and girl", "love", "romantic", "dono"]):
+        return "A photorealistic 8k cinematic photograph of a beautiful young couple standing together in love, boy and girl romantic portrait, aesthetic warm lighting, high detail faces, cinematic depth of field, 8k resolution"
     
     # Map
     if "naksha" in t or "nakshy" in t or "map" in t:
@@ -515,7 +528,7 @@ if user_input:
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic photo dobara tayyar kar di hai:"
 
-    # 2. PHOTO INTENT (Map, Celebrities, Objects, Products)
+    # 2. PHOTO & MAP INTENT
     elif is_photo_intent(user_input):
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
@@ -552,9 +565,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. UNIVERSAL WORLD KNOWLEDGE & QUESTION ANSWERING
+    # 4. UNIVERSAL WORLD KNOWLEDGE & LIVE TIME
     else:
-        with st.spinner("AI dunya ke facts aur deep solution analyze kar raha hai..."):
+        with st.spinner("AI dunya ke facts aur live data check kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
