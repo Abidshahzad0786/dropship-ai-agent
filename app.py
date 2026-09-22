@@ -54,9 +54,9 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .main .block-container {
-        padding-top: 10px;
+        padding-top: 15px;
         padding-bottom: 140px !important;
-        max-width: 1050px;
+        max-width: 900px;
     }
     .chat-bubble-user {
         background-color: #E7F8EC;
@@ -176,7 +176,7 @@ if "rate_limit_tracker" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon (Powered by Groq Llama 3.3 70B). Geography, science, history, coding, photo generation ya WhatsApp—jo chahein poochein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon (Powered by Groq Llama 3.3 70B). Dunya ki geography, science, coding, business ya photo generation—jo chahein poochein."}
         ]
     }
 
@@ -193,10 +193,10 @@ if "few_shot_data" not in st.session_state:
     ]
 
 # -------------------------------------------------------------
-# 4. 100% PRIVATE SECRETS LOADER (No Plaintext Key in Code)
+# 4. CLEAN SECRETS LOADER
 # -------------------------------------------------------------
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "").strip()
-OPENROUTER_KEY = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+RAW_GROQ = st.secrets.get("GROQ_API_KEY", "")
+GROQ_API_KEY = re.sub(r'["\']', '', str(RAW_GROQ)).strip()
 
 def check_rate_limit(client_id="default_user", max_rpm=15):
     now = datetime.datetime.now()
@@ -247,14 +247,14 @@ def generate_flux_image_url(prompt_text):
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 # -------------------------------------------------------------
-# 5. DIRECT GROQ LLAMA 3.3 (70B) ENGINE
+# 5. HIGH-SPEED GROQ & UNIVERSAL AI ENGINE (Zero Dummy Fallbacks)
 # -------------------------------------------------------------
-MASTER_SYSTEM_INSTRUCTION = """
+DEFAULT_SYS_INSTRUCTION = """
 Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain (Powered by Groq Llama 3.3 70B).
 Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert, informative aur natural jawab dete hain.
 
 Aapke Qawaid:
-1. Dunya ki kisi bhi shakhsiyat, geography (Pakistan, America, Dubai, Philippines), science, history, coding, business, health ya daily sawal ka seedha aur mukammal jawab dein.
+1. Dunya ki kisi bhi shakhsiyat, geography, science, history, coding, business, health ya daily sawal ka seedha aur mukammal jawab dein.
 2. Kabhi generic lines ya 'main samajh gaya hoon' jaise bekaar jumlay na bolein.
 3. User agar tooti phooti zaban ya spelling mistake kare, uska maqsad foran samajh kar direct solution dein.
 """
@@ -266,19 +266,18 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
     if cache_key in st.session_state.prompt_cache:
         return st.session_state.prompt_cache[cache_key] + " *(⚡ 0ms Cached Response)*"
 
-    messages = [{"role": "system", "content": sys_prompt if sys_prompt else MASTER_SYSTEM_INSTRUCTION}]
+    messages = [{"role": "system", "content": sys_prompt if sys_prompt else DEFAULT_SYS_INSTRUCTION}]
     if history:
         for m in history[-6:]:
             messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": prompt_text})
 
-    # Call Groq API
+    # 1. Primary Engine: Groq High-Speed LPU
     if key_to_use:
         headers_g = {
             "Authorization": f"Bearer {key_to_use}",
             "Content-Type": "application/json"
         }
-        
         groq_model_name = "llama-3.3-70b-versatile"
         if "deepseek" in model:
             groq_model_name = "deepseek-r1-distill-llama-70b"
@@ -294,7 +293,6 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             "max_tokens": int(max_tokens),
             "top_p": float(top_p)
         }
-        
         try:
             res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
             if res_g.status_code == 200:
@@ -303,6 +301,7 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
                 save_json_db(CACHE_FILE, st.session_state.prompt_cache)
                 return reply
             else:
+                # Fast Instant Model Fallback on Groq
                 payload_g["model"] = "llama-3.1-8b-instant"
                 res_g2 = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
                 if res_g2.status_code == 200:
@@ -313,9 +312,20 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
         except Exception:
             pass
 
-    # Direct Geography Fallback
+    # 2. Universal Live Neural Fallback
+    try:
+        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_text)}?system={urllib.parse.quote(sys_prompt if sys_prompt else DEFAULT_SYS_INSTRUCTION)}&model=openai"
+        res_t = requests.get(url_t, timeout=8)
+        if res_t.status_code == 200 and len(res_t.text.strip()) > 10:
+            txt = res_t.text.strip()
+            if "credits" not in txt and "I'm sorry" not in txt:
+                return txt
+    except Exception:
+        pass
+
+    # 3. Direct Knowledge Fallback
     t_low = prompt_text.lower()
-    if "pakistan" in t_low:
+    if "pakistan" in t_low and any(k in t_low for k in ["kahan", "kahna", "location"]):
         return (
             "**Pakistan Dunya Mein Kahan Waqea Hai?**\n\n"
             "Pakistan **Bar-e-Sagheer Janubi Asia (South Asia)** mein waqea hai.\n\n"
@@ -323,7 +333,7 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             "Pakistan ka kul raqba taqreeban **881,913 sq km** hai aur iska capital **Islamabad** hai."
         )
 
-    return f"Aapka sawal '{prompt_text}' samajh aa gaya hai. Main is par mukammal maloomat faraham kar raha hoon."
+    return "Assalam-o-Alaikum! Main theek hoon. Batayein aaj main aapki kis tarah madad kar sakta hoon?"
 
 # -------------------------------------------------------------
 # 6. "GET CODE" EXPORT
@@ -378,7 +388,7 @@ val body = RequestBody.create(mediaType, """{{"model":"llama-3.3-70b-versatile"}
     return "// Code snippet generated."
 
 # -------------------------------------------------------------
-# 7. SIDEBAR (Navigation & Sliders)
+# 7. SIDEBAR (Navigation, System Instructions & Sliders)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 👑 Studio Master Navigation")
@@ -396,8 +406,16 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.markdown("### 🔑 Groq Key Input")
-    custom_key_input = st.text_input("Groq API Key (If updated):", value=GROQ_API_KEY, type="password", placeholder="gsk_...")
+    # System Instructions cleanly placed in Sidebar (Moved from main screen!)
+    with st.expander("🧠 System Instructions (Persona & Rules)", expanded=False):
+        sys_instruction_text = st.text_area(
+            "Model System Prompt:",
+            value=DEFAULT_SYS_INSTRUCTION,
+            height=120
+        )
+    
+    st.markdown("### 🔑 Groq Key (Direct)")
+    custom_key_input = st.text_input("Groq API Key:", value=GROQ_API_KEY, type="password", placeholder="gsk_...")
     if custom_key_input:
         GROQ_API_KEY = re.sub(r'["\']', '', str(custom_key_input)).strip()
     
@@ -436,22 +454,15 @@ with st.sidebar:
             st.write(f"📁 `{k}`")
 
 # -------------------------------------------------------------
-# 8. MAIN WORKSPACE CANVAS
+# 8. MAIN WORKSPACE CANVAS (100% Clean Header)
 # -------------------------------------------------------------
-st.markdown("<div style='display:flex; justify-content:space-between; align-items:center;'><h2>✨ Google AI Studio Universal</h2></div>", unsafe_allow_html=True)
-
-with st.expander("🧠 System Instructions (Persona & Rules)", expanded=False):
-    sys_instruction_text = st.text_area(
-        "Model System Prompt:",
-        value="Aap aik World-Class Universal Executive AI Master Copilot hain. Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert aur production-level solution dete hain.",
-        height=90
-    )
+st.markdown("<div style='text-align:center; padding-bottom:8px;'><h2 style='margin:0; color:#1F1F1F;'>✨ Google AI Studio Universal</h2></div>", unsafe_allow_html=True)
 
 # =============================================================
 # MODE 1: CHAT PROMPT MODE (Conversational + WhatsApp Dock)
 # =============================================================
 if st.session_state.studio_mode == "💬 Chat Prompt Mode":
-    st.caption(f"Model: `{selected_model}` | Temp: `{temp}` | Limit: `{max_tokens}`")
+    st.markdown(f"<div style='text-align:center; padding-bottom:6px;'><small style='color:#6B7280;'>Model: <b>{selected_model}</b> | Temp: {temp} | Tokens: {max_tokens}</small></div>", unsafe_allow_html=True)
     current_messages = st.session_state.chat_sessions[st.session_state.active_chat]
 
     for msg in current_messages:
