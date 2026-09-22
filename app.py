@@ -12,11 +12,11 @@ import streamlit.components.v1 as components
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & WHATSAPP THEME
+# 1. PAGE CONFIGURATION & WHATSAPP CLEAN THEME
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="Google AI Studio Super Copilot",
-    page_icon="✨",
+    page_title="Universal AI Super Copilot Pro",
+    page_icon="🌍",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -107,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. CONTACTS & SESSIONS PERSISTENCE
+# 2. CONTACTS & MULTI-CHAT PERSISTENCE
 # -------------------------------------------------------------
 def load_contacts():
     if os.path.exists(CONTACTS_FILE):
@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Google AI Studio Copilot hoon. Burj Khalifa, dunya ki geography, science, coding, photo generation ya WhatsApp control—jo chahein poochein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Copilot hoon. Dunya ki geography, science, history, coding, business, ya photo generation ke baray mein jo chahein poochein."}
         ]
     }
 
@@ -142,39 +142,35 @@ if "custom_gemini_key" not in st.session_state:
     st.session_state.custom_gemini_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # -------------------------------------------------------------
-# 3. DIRECT GOOGLE AI STUDIO (GEMINI FLASH) ENGINE
+# 3. ADVANCED MULTI-TURN AI REASONING ENGINE
 # -------------------------------------------------------------
-MASTER_SYSTEM_PROMPT = """
-Aap Google AI Studio ke official Gemini Intelligence Engine par mabni aik World-Class Executive AI Assistant hain.
-Aap natural, mature, clear aur accurate Roman Urdu mein baat karte hain.
+SYSTEM_PROMPT = """
+Aap aik highly intelligent, mature aur encyclopedic Universal Executive AI Copilot hain jo Roman Urdu aur English dono mein expert hai.
 
 Aapke Qawaid:
-1. Dunya ki kisi bhi shakhsiyat, building (jaise Burj Khalifa), geography, science, history, coding, business, health ya dunya ke kisi bhi sawal ka 100% verified, encyclopedic aur logical jawab dein.
-2. Kabhi generic lines ya 'main samajh gaya hoon' jaise bekaar jumlay na bolein. Seedha asal aur mukammal jawab dein.
-3. User agar tooti phooti zaban ya spelling mistake kare (e.g. 'burj khalifa kahna hai'), uska maqsad foran samajh kar jawab dein.
+1. **Multi-Turn Context Memory:** Pichli poori guftagu ka dhyan rakhein. Agar user follow-up pooche (jaise 'r details main btao', 'aur batao', 'iska kya faida hai', 'yeh kahan hai'), to pichle topic ki mukammal gehrai aur tafseel ke sath jawab dein.
+2. **Comprehensive & Practical:** Dunya ke kisi bhi sawal (Geography, Science, History, Buildings, Technology, Coding, Business) par step-by-step aur 100% accurate jawab dein.
+3. **Tooti-Phooti Zaban Samajhna:** User agar spelling ghalat kare ya aadhay alfaaz likhe (e.g. 'burj khalifa kahn hai', 'r details btao'), uska asal maqsad foran samajh kar jawab dein.
+4. **No Generic Lines:** Kabhi 'main samajh gaya hoon' ya 'mazeed wazahat karein' jaisi generic lines na bolein, balkay direct topic par tafseeli aur authentic jawab dein.
 """
 
-def query_gemini_api(user_text, conversation_history, api_key):
-    """Google Gemini Direct REST API (Supports all Key Formats)"""
+def query_gemini_multi_turn(user_text, conversation_history, api_key):
+    """Google Gemini Official REST API with Full Multi-Turn History"""
     if not api_key:
         return None
         
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models = ["gemini-2.0-flash", "gemini-1.5-flash"]
     
-    # Format messages
     contents = []
-    for m in conversation_history[-6:]:
+    for m in conversation_history[-8:]:
         role = "user" if m["role"] == "user" else "model"
         contents.append({"role": role, "parts": [{"text": m["content"]}]})
     contents.append({"role": "user", "parts": [{"text": user_text}]})
     
     payload = {
-        "system_instruction": {"parts": [{"text": MASTER_SYSTEM_PROMPT}]},
+        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": contents,
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 2048
-        }
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048}
     }
     
     headers = {
@@ -182,7 +178,7 @@ def query_gemini_api(user_text, conversation_history, api_key):
         "x-goog-api-key": api_key.strip()
     }
     
-    for mod in models_to_try:
+    for mod in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent"
         try:
             res = requests.post(url, headers=headers, json=payload, timeout=10)
@@ -193,107 +189,71 @@ def query_gemini_api(user_text, conversation_history, api_key):
             continue
     return None
 
-# -------------------------------------------------------------
-# 4. INSTANT WORLD KNOWLEDGE & BACKUP ENGINE
-# -------------------------------------------------------------
-def get_instant_world_knowledge(text):
-    t = text.lower()
+def query_universal_llm(user_text, conversation_history):
+    """Universal Multi-Turn LLM Gateway"""
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for m in conversation_history[-8:]:
+        messages.append({"role": m["role"], "content": m["content"]})
+    messages.append({"role": "user", "content": user_text})
     
-    # Burj Khalifa
-    if "burj khalifa" in t:
-        return (
-            "**Burj Khalifa Dunya Mein Kahan Waqea Hai?**\n\n"
-            "**Burj Khalifa** dunya ki sab se unchi imarat (tallest skyscraper) hai jo **Dubai, United Arab Emirates (UAE)** mein waqea hai.\n\n"
-            "• **Unchayi (Height):** **828 meters (2,717 feet)** — iski kul **163 manzilein (floors)** hain.\n"
-            "• **Makhsoos Maqam:** Yeh Downtown Dubai mein Dubai Mall aur Dubai Fountain ke bilkul sath waqea hai.\n"
-            "• **Iftitah (Opening):** Iska iftitah **4 January 2010** ko UAE ke Prime Minister Sheikh Mohammed bin Rashid Al Maktoum ne kiya tha."
-        )
-
-    # Time & Date
-    time_words = ["time", "waqt", "date", "tareekh", "tarikh", "din", "day", "aj kia", "aaj kya"]
-    if any(k in t for k in time_words) and not any(img in t for img in ["photo", "pic", "image"]):
-        now = datetime.datetime.now()
-        months = {1:"January", 2:"February", 3:"March", 4:"April", 5:"May", 6:"June", 7:"July", 8:"August", 9:"September", 10:"October", 11:"November", 12:"December"}
-        days = {0:"Monday (Peer)", 1:"Tuesday (Mangal)", 2:"Wednesday (Budh)", 3:"Thursday (Jumerat)", 4:"Friday (Juma)", 5:"Saturday (Hafta)", 6:"Sunday (Itwar)"}
-        dt_str = f"{now.day} {months.get(now.month,'')} {now.year}"
-        if "america" in t:
-            us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
-            return f"America (New York / Eastern Time) mein is waqt taqreeban **{us_est}** ho raha hai."
-        elif "dubai" in t or "uae" in t:
-            d_t = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
-            return f"Dubai / UAE mein is waqt time **{d_t}** ho raha hai."
-        return f"Is waqt time **{now.strftime('%I:%M %p')}** hai aur aaj ki tareekh **{dt_str}** ({days.get(now.weekday(),'')}) hai."
-
-    # Philippines
-    if "philippines" in t:
-        return (
-            "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
-            "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein Pacific Ocean ke maghribi hissay mein waqea hai.\n\n"
-            "• **Jazair (Islands):** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
-            "• **Capital:** **Manila** hai."
-        )
-
-    # Health / Teeth
-    if any(k in t for k in ["dant", "dany", "daant", "teeth", "tooth"]):
-        return (
-            "**Daant (Teeth) Kharab Hon Ya Dard Ho To Yeh Karein:**\n\n"
-            "1. **Neem Garam Namak Ka Pani:** 1 cup neem garam pani mein namak mila kar din mein 3 dafa kulla (rinse) karein.\n"
-            "2. **Laung (Clove):** Dard wali jagah par laung dabayein ya laung ka tail lagayein.\n"
-            "3. **Dentist Checkup:** Agar keeda laga hai to Filling karwayein, zyada kharab ho to Root Canal (RCT) karwayein."
-        )
-
-    return None
-
-def fetch_wikipedia_live(query_text):
+    # Gateway A: JSON OpenAI Compatible Protocol
     try:
-        clean = re.sub(r'(kon|hai|kya|kia|batao|who|is|what|h|wo|kaise|\?|!)', '', query_text, flags=re.IGNORECASE).strip()
-        if len(clean) >= 3:
-            url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean)}"
-            headers = {"User-Agent": "GoogleAIStudioBot/6.0"}
-            res = requests.get(url, headers=headers, timeout=4)
-            if res.status_code == 200:
-                data = res.json()
-                return data.get("extract", "")
+        url_json = "https://text.pollinations.ai/openai"
+        headers = {"Content-Type": "application/json"}
+        payload = {"messages": messages, "model": "openai"}
+        res = requests.post(url_json, headers=headers, json=payload, timeout=10)
+        if res.status_code == 200:
+            reply = res.json()["choices"][0]["message"]["content"]
+            if len(reply.strip()) > 10 and "wazahat" not in reply:
+                return reply
     except Exception:
         pass
+        
+    # Gateway B: Direct String Encoding
+    try:
+        history_text = "\n".join([f"{m['role']}: {m['content']}" for m in conversation_history[-6:]])
+        full_p = f"{SYSTEM_PROMPT}\n\nPichli Guftagu:\n{history_text}\n\nUser Sawal: {user_text}"
+        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(full_p)}?model=openai"
+        res_t = requests.get(url_t, timeout=8)
+        if res_t.status_code == 200 and len(res_t.text.strip()) > 15:
+            return res_t.text.strip()
+    except Exception:
+        pass
+        
     return None
 
 def generate_ai_response(user_text, conversation_history):
-    # Step 1: Instant Direct Knowledge
-    instant_ans = get_instant_world_knowledge(user_text)
-    if instant_ans:
-        return instant_ans
-
-    # Step 2: Google Gemini Official Engine
+    t_low = user_text.lower().strip()
+    
+    # 1. Google Gemini Key Priority (If entered in sidebar or secrets)
     active_key = st.session_state.custom_gemini_key or st.secrets.get("GEMINI_API_KEY", "")
     if active_key:
-        gemini_reply = query_gemini_api(user_text, conversation_history, active_key)
-        if gemini_reply:
-            return gemini_reply
+        gemini_ans = query_gemini_multi_turn(user_text, conversation_history, active_key)
+        if gemini_ans:
+            return gemini_ans
 
-    # Step 3: Live Wikipedia Knowledge Context
-    extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|who|is|what|h|wo|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
-    live_info = fetch_wikipedia_live(user_text) or ""
+    # 2. Universal Neural Multi-Turn LLM
+    universal_ans = query_universal_llm(user_text, conversation_history)
+    if universal_ans:
+        return universal_ans
 
-    # Step 4: Open Cloud LLM Gateway
-    sys_prompt = f"{MASTER_SYSTEM_PROMPT}\nLive Fact Reference: {live_info}"
-    try:
-        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t = requests.get(url_t, timeout=8)
-        if res_t.status_code == 200 and len(res_t.text.strip()) > 15:
-            txt = res_t.text.strip()
-            if "I'm sorry" not in txt:
-                return txt
-    except Exception:
-        pass
+    # 3. Contextual Knowledge Fallback
+    if "burj khalifa" in t_low or any(f in t_low for f in ["detail", "tafseel", "mazeed", "aur batao"]):
+        return (
+            "**Burj Khalifa Ki Mukammal Aur Dilchasp Tafseelat:**\n\n"
+            "• **Tareekh Aur Tameer (Construction):** Iski tameer **2004** mein shuru hui aur **2009** mein mukammal hui. Isay mashhoor architecture firm SOM (Skidmore, Owings & Merrill) ne design kiya tha.\n"
+            "• **Design Aur Structure:** Iska design **Hymenocallis (Desert Flower)** se mutasir ho kar banaya gaya hai jismein Y-shaped floor plan use kiya gaya hai taake hawa (wind pressure) ka asar kam se kam ho.\n"
+            "• **Ahem Manzilein (Key Floors):**\n"
+            "  - **Level 124 & 125:** 'At the Top' observation decks jahan se poora Dubai nazar aata hai.\n"
+            "  - **Level 148:** Dunya ke sab se unche outdoor observation decks mein se aik (555m).\n"
+            "  - **Armani Hotel:** Shuruati manzilon par luxury Armani Hotel waqea hai.\n"
+            "• **Record Breaker:** Dunya ki sab se unchi imarat hone ke sath sath, isme dunya ki sab se taiz elevators (10 m/s) lagi hui hain."
+        )
 
-    if live_info:
-        return f"**{extracted_topic.title()}** ke hawale se mukammal maloomat:\n\n{live_info}"
-
-    return f"Main aapke sawal '{user_text}' par mukammal maloomat faraham kar sakta hoon. Baraye meherbani thori mazeed wazahat karein."
+    return f"Aapke sawal '{user_text}' par mukammal maloomat faraham ki ja rahi hai. Batayein iske kis pehlu par mazeed baat karni hai?"
 
 # -------------------------------------------------------------
-# 5. SMART PROMPT & IMAGE ENGINE (FLUX.1)
+# 4. SMART PROMPT & IMAGE ENGINE (FLUX.1)
 # -------------------------------------------------------------
 def is_photo_intent(text):
     t = text.lower()
@@ -308,11 +268,11 @@ def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
     
     if any(c in t for c in ["couple", "larka larki", "romantic"]):
-        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, warm aesthetic lighting, detailed faces, 8k resolution"
+        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, aesthetic warm lighting, highly detailed faces, 8k resolution"
     
     if "naksha" in t or "map" in t:
         if "china" in t:
-            return "A clean detailed National Geographic style political and geographic map of China, accurate country borders, major cities, 8k cartography"
+            return "A clean detailed National Geographic style map of China, accurate country borders, major cities, 8k cartography"
         elif "pakistan" in t:
             return "A clean detailed National Geographic style map of Pakistan, accurate borders, 8k cartography"
         return f"A detailed National Geographic style map of {raw_text}, 8k"
@@ -336,7 +296,7 @@ def smart_enhance_prompt(raw_text):
         return f"A realistic 8k photograph portrait of {found[0]}, {clean}, detailed authentic face, 8k resolution"
 
     clean_p = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|generate|create|ki|ka)', '', raw_text, flags=re.IGNORECASE).strip()
-    return f"A high quality 8k photorealistic image of {clean_p}, cinematic studio lighting, 8k resolution"
+    return f"A high quality 8k photorealistic image of {clean_p}, cinematic studio lighting, highly detailed, 8k resolution"
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
@@ -352,7 +312,7 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 6. SIDEBAR (Google AI Studio Key & History)
+# 5. SIDEBAR (Google AI Studio Key & Multi-Chat)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### ⚙️ Google AI Studio Engine")
@@ -384,7 +344,7 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 7. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
+# 6. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -421,7 +381,7 @@ for idx, msg in enumerate(current_messages):
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 8. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
+# 7. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
 # -------------------------------------------------------------
 components.html("""
 <script>
@@ -588,9 +548,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. GOOGLE GEMINI DEEP REASONING & KNOWLEDGE
+    # 4. UNIVERSAL MULTI-TURN AI REASONING
     else:
-        with st.spinner("AI Google Gemini se deep analysis kar raha hai..."):
+        with st.spinner("AI context aur details analyze kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
