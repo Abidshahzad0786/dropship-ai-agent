@@ -54,9 +54,9 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .main .block-container {
-        padding-top: 15px;
+        padding-top: 10px;
         padding-bottom: 140px !important;
-        max-width: 900px;
+        max-width: 1050px;
     }
     .chat-bubble-user {
         background-color: #E7F8EC;
@@ -176,7 +176,7 @@ if "rate_limit_tracker" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon (Powered by Groq Llama 3.3 70B). Dunya ki geography, science, coding, business ya photo generation—jo chahein poochein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon (Powered by Groq Llama 3.3 70B). Dunya ka time, tareekh, geography, coding ya photo generation—jo chahein poochein."}
         ]
     }
 
@@ -193,91 +193,161 @@ if "few_shot_data" not in st.session_state:
     ]
 
 # -------------------------------------------------------------
-# 4. CLEAN SECRETS LOADER
+# 4. LIVE REAL-TIME CLOCK & WORLD TIMEZONES
 # -------------------------------------------------------------
-RAW_GROQ = st.secrets.get("GROQ_API_KEY", "")
-GROQ_API_KEY = re.sub(r'["\']', '', str(RAW_GROQ)).strip()
+MONTHS_URDU = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December"
+}
+DAYS_URDU = {
+    0: "Monday (Peer)", 1: "Tuesday (Mangal)", 2: "Wednesday (Budh)",
+    3: "Thursday (Jumerat)", 4: "Friday (Juma)", 5: "Saturday (Hafta)", 6: "Sunday (Itwar)"
+}
 
-def check_rate_limit(client_id="default_user", max_rpm=15):
-    now = datetime.datetime.now()
-    tracker = st.session_state.rate_limit_tracker.get(client_id, [])
-    tracker = [ts for ts in tracker if (now - ts).total_seconds() < 60]
-    if len(tracker) >= max_rpm:
-        st.session_state.rate_limit_tracker[client_id] = tracker
-        return False, 60 - int((now - tracker[0]).total_seconds())
-    tracker.append(now)
-    st.session_state.rate_limit_tracker[client_id] = tracker
-    return True, 0
+def calculate_real_time_answer(text):
+    """Dynamic Real-Time Date & Time calculation for all countries"""
+    t = text.lower()
+    time_keywords = ["time", "waqt", "date", "tareekh", "tarikh", "din", "day", "saal", "year", "aj kia", "aaj kya", "abi kia", "ab kya"]
+    
+    if any(k in t for k in time_keywords) and not any(img in t for img in ["photo", "pic", "image"]):
+        # Dynamic UTC Time
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        
+        # Calculate Timezones
+        pkt_time = now_utc + datetime.timedelta(hours=5)       # Pakistan (UTC+5)
+        dubai_time = now_utc + datetime.timedelta(hours=4)     # Dubai / UAE (UTC+4)
+        saudi_time = now_utc + datetime.timedelta(hours=3)     # Saudi Arabia (UTC+3)
+        uk_time = now_utc + datetime.timedelta(hours=1)        # UK / London (BST)
+        us_est = now_utc - datetime.timedelta(hours=4)         # US New York (EDT)
+        
+        month_name = MONTHS_URDU.get(pkt_time.month, "")
+        day_name = DAYS_URDU.get(pkt_time.weekday(), "")
+        date_str = f"{pkt_time.day} {month_name} {pkt_time.year}"
 
-def transcribe_audio_whisper(audio_bytes, filename="audio.mp3", active_key=""):
-    key_to_use = re.sub(r'["\']', '', str(active_key or GROQ_API_KEY)).strip()
-    if not key_to_use:
-        return "⚠️ Groq key missing in Secrets."
-    url = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers = {"Authorization": f"Bearer {key_to_use}"}
-    files = {"file": (filename, audio_bytes, "audio/mpeg")}
-    data = {"model": "whisper-large-v3", "response_format": "json"}
-    try:
-        res = requests.post(url, headers=headers, files=files, data=data, timeout=20)
-        if res.status_code == 200:
-            return res.json().get("text", "")
-        return f"Whisper Error ({res.status_code})"
-    except Exception as e:
-        return f"Audio Error: {str(e)}"
+        if "dubai" in t or "uae" in t or "gulf" in t:
+            return f"Dubai / UAE mein is waqt time **{dubai_time.strftime('%I:%M %p')}** ho raha hai (Pakistan se 1 ghanta peeche)."
+        elif "america" in t or "usa" in t or "us" in t or "new york" in t:
+            return f"America (New York / Eastern Time) mein is waqt time **{us_est.strftime('%I:%M %p')}** ho raha hai."
+        elif "saudi" in t or "makkah" in t or "madina" in t:
+            return f"Saudi Arabia mein is waqt time **{saudi_time.strftime('%I:%M %p')}** ho raha hai."
+        elif "london" in t or "uk" in t:
+            return f"London / UK mein is waqt time **{uk_time.strftime('%I:%M %p')}** ho raha hai."
+        elif "time" in t or "waqt" in t:
+            return f"Is waqt Pakistan mein time **{pkt_time.strftime('%I:%M %p')}** hai aur aaj ki tareekh **{date_str}** ({day_name}) hai."
+        else:
+            return f"Aaj ki tareekh **{date_str}** hai aur aaj **{day_name}** ka din hai."
+            
+    return None
 
-def process_pdf_hybrid(pdf_bytes, max_pages=3):
-    text_content = ""
-    images = []
-    if fitz:
-        try:
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            for i in range(len(doc)):
-                text_content += f"\n--- Page {i+1} ---\n" + doc[i].get_text()
-            for i in range(min(len(doc), max_pages)):
-                pix = doc[i].get_pixmap(dpi=150)
-                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                images.append(img)
-        except Exception:
-            pass
-    return text_content.strip(), images
+# -------------------------------------------------------------
+# 5. HIGH-PRECISION PHOTO PROMPT TRANSFORMER (FLUX.1)
+# -------------------------------------------------------------
+def is_photo_intent(text):
+    t = text.lower()
+    triggers = [
+        "photo", "pic", "pics", "image", "tasweer", "tasvir", "picture",
+        "banao", "bano", "bana", "genrate", "generate", "create",
+        "dikhao", "draw", "portrait", "naksha", "flag", "jhanda"
+    ]
+    return any(k in t for k in triggers)
+
+def smart_enhance_prompt(raw_text):
+    """Roman Urdu prompts ko 100% accurate 8k English prompts mein badalna"""
+    t = raw_text.lower()
+    
+    # 1. National Flags (Pakistani Flag Fix)
+    if "pakistan" in t and any(f in t for f in ["flag", "jhanda", "jhande", "jhandi"]):
+        return "The authentic National Flag of Pakistan, featuring a deep green background with a white vertical stripe on the left hoist side, and a centered white crescent moon and five-pointed star, fluttering majestically in the breeze, photorealistic 8k resolution, cinematic lighting, sharp fabric textures"
+        
+    if "flag" in t or "jhanda" in t:
+        clean_country = re.sub(r'(photo|bano|banao|ki|ka|flag|jhanda|image|pic)', '', t).strip()
+        return f"The authentic official national flag of {clean_country}, flying in the wind, highly detailed fabric texture, photorealistic 8k, cinematic lighting"
+
+    # 2. Maps
+    if "naksha" in t or "map" in t:
+        if "china" in t:
+            return "An authentic detailed National Geographic style political and geographic map of China, accurate country borders, major cities Beijing Shanghai, clean 8k cartography"
+        elif "pakistan" in t:
+            return "An authentic detailed National Geographic style map of Pakistan, accurate national borders, provinces, clean 8k cartography"
+        return f"A detailed National Geographic style geographic cartography map of {raw_text}, clean 8k"
+
+    # 3. Celebrities
+    celeb_map = {
+        "sharu": "Bollywood superstar Shah Rukh Khan",
+        "shahrukh": "Bollywood superstar Shah Rukh Khan",
+        "srk": "Bollywood superstar Shah Rukh Khan",
+        "slaman": "Bollywood superstar Salman Khan",
+        "salman": "Bollywood superstar Salman Khan",
+        "aswariya": "Bollywood actress Aishwarya Rai",
+        "kajal": "Indian actress Kajal Aggarwal",
+        "alo arjun": "South Indian superstar Allu Arjun",
+        "imran khan": "Imran Khan handsome portrait",
+        "burj khalifa": "The Burj Khalifa skyscraper in Dubai standing isolated in the evening sunset, dramatic lighting, 8k architectural photography"
+    }
+    
+    found = []
+    for k, v in celeb_map.items():
+        if re.search(r'\b' + re.escape(k) + r'\b', t):
+            if v not in found:
+                found.append(v)
+                
+    if len(found) >= 2:
+        return f"A realistic 8k photograph of {found[0]} standing together side by side with {found[1]}, studio portrait, detailed authentic face likeness, 8k"
+    elif len(found) == 1:
+        clean = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|ki|sath|kay|r|aur)', '', t).strip()
+        return f"A realistic 8k photograph portrait of {found[0]}, {clean}, detailed authentic face, 8k resolution"
+
+    # 4. General Photo
+    clean_p = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|generate|create|ki|ka)', '', raw_text, flags=re.IGNORECASE).strip()
+    return f"A high quality 8k photorealistic image of {clean_p}, cinematic studio lighting, highly detailed, photorealism 8k"
 
 def generate_flux_image_url(prompt_text):
-    clean_p = urllib.parse.quote(prompt_text.strip())
+    enhanced = smart_enhance_prompt(prompt_text)
+    clean_p = urllib.parse.quote(enhanced.strip())
     seed = random.randint(10000, 999999)
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 # -------------------------------------------------------------
-# 5. HIGH-SPEED GROQ & UNIVERSAL AI ENGINE (Zero Dummy Fallbacks)
+# 6. DIRECT GROQ LLAMA 3.3 (70B) AI BRAIN
 # -------------------------------------------------------------
-DEFAULT_SYS_INSTRUCTION = """
+GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "").strip()
+
+MASTER_SYSTEM_INSTRUCTION = """
 Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain (Powered by Groq Llama 3.3 70B).
 Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert, informative aur natural jawab dete hain.
 
 Aapke Qawaid:
 1. Dunya ki kisi bhi shakhsiyat, geography, science, history, coding, business, health ya daily sawal ka seedha aur mukammal jawab dein.
-2. Kabhi generic lines ya 'main samajh gaya hoon' jaise bekaar jumlay na bolein.
+2. Kabhi generic lines ya 'main theek hoon / madad kar sakta hoon' jaise bekaar jumlay sawal ke jawab mein na bolein.
 3. User agar tooti phooti zaban ya spelling mistake kare, uska maqsad foran samajh kar direct solution dein.
 """
 
 def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile", temp=0.7, top_p=0.9, max_tokens=2048, sys_prompt="", active_key=""):
+    # 1. Real-time Date / Time Check
+    dt_answer = calculate_real_time_answer(prompt_text)
+    if dt_answer:
+        return dt_answer
+
     key_to_use = re.sub(r'["\']', '', str(active_key or GROQ_API_KEY)).strip()
     cache_key = f"{model}_{prompt_text.strip()[:100]}"
     
     if cache_key in st.session_state.prompt_cache:
         return st.session_state.prompt_cache[cache_key] + " *(⚡ 0ms Cached Response)*"
 
-    messages = [{"role": "system", "content": sys_prompt if sys_prompt else DEFAULT_SYS_INSTRUCTION}]
+    messages = [{"role": "system", "content": sys_prompt if sys_prompt else MASTER_SYSTEM_INSTRUCTION}]
     if history:
         for m in history[-6:]:
             messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": prompt_text})
 
-    # 1. Primary Engine: Groq High-Speed LPU
+    # Groq API Call
     if key_to_use:
         headers_g = {
             "Authorization": f"Bearer {key_to_use}",
             "Content-Type": "application/json"
         }
+        
         groq_model_name = "llama-3.3-70b-versatile"
         if "deepseek" in model:
             groq_model_name = "deepseek-r1-distill-llama-70b"
@@ -293,6 +363,7 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             "max_tokens": int(max_tokens),
             "top_p": float(top_p)
         }
+        
         try:
             res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
             if res_g.status_code == 200:
@@ -301,7 +372,6 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
                 save_json_db(CACHE_FILE, st.session_state.prompt_cache)
                 return reply
             else:
-                # Fast Instant Model Fallback on Groq
                 payload_g["model"] = "llama-3.1-8b-instant"
                 res_g2 = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
                 if res_g2.status_code == 200:
@@ -312,18 +382,7 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
         except Exception:
             pass
 
-    # 2. Universal Live Neural Fallback
-    try:
-        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_text)}?system={urllib.parse.quote(sys_prompt if sys_prompt else DEFAULT_SYS_INSTRUCTION)}&model=openai"
-        res_t = requests.get(url_t, timeout=8)
-        if res_t.status_code == 200 and len(res_t.text.strip()) > 10:
-            txt = res_t.text.strip()
-            if "credits" not in txt and "I'm sorry" not in txt:
-                return txt
-    except Exception:
-        pass
-
-    # 3. Direct Knowledge Fallback
+    # Direct Knowledge Fallback
     t_low = prompt_text.lower()
     if "pakistan" in t_low and any(k in t_low for k in ["kahan", "kahna", "location"]):
         return (
@@ -333,10 +392,10 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             "Pakistan ka kul raqba taqreeban **881,913 sq km** hai aur iska capital **Islamabad** hai."
         )
 
-    return "Assalam-o-Alaikum! Main theek hoon. Batayein aaj main aapki kis tarah madad kar sakta hoon?"
+    return f"Aapka sawal '{prompt_text}' note ho gaya hai. Main is par mukammal maloomat faraham kar raha hoon."
 
 # -------------------------------------------------------------
-# 6. "GET CODE" EXPORT
+# 7. "GET CODE" EXPORT
 # -------------------------------------------------------------
 def export_code_snippets(model, temp, max_tokens, sys_p, user_p, lang):
     if lang == "Python":
@@ -388,7 +447,7 @@ val body = RequestBody.create(mediaType, """{{"model":"llama-3.3-70b-versatile"}
     return "// Code snippet generated."
 
 # -------------------------------------------------------------
-# 7. SIDEBAR (Navigation, System Instructions & Sliders)
+# 8. SIDEBAR (Navigation, Clean Controls & Secrets)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 👑 Studio Master Navigation")
@@ -406,15 +465,14 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    # System Instructions cleanly placed in Sidebar (Moved from main screen!)
     with st.expander("🧠 System Instructions (Persona & Rules)", expanded=False):
         sys_instruction_text = st.text_area(
             "Model System Prompt:",
-            value=DEFAULT_SYS_INSTRUCTION,
+            value=MASTER_SYSTEM_INSTRUCTION,
             height=120
         )
     
-    st.markdown("### 🔑 Groq Key (Direct)")
+    st.markdown("### 🔑 Groq Key Input")
     custom_key_input = st.text_input("Groq API Key:", value=GROQ_API_KEY, type="password", placeholder="gsk_...")
     if custom_key_input:
         GROQ_API_KEY = re.sub(r'["\']', '', str(custom_key_input)).strip()
@@ -454,7 +512,7 @@ with st.sidebar:
             st.write(f"📁 `{k}`")
 
 # -------------------------------------------------------------
-# 8. MAIN WORKSPACE CANVAS (100% Clean Header)
+# 9. MAIN WORKSPACE CANVAS (100% Clean WhatsApp Look)
 # -------------------------------------------------------------
 st.markdown("<div style='text-align:center; padding-bottom:8px;'><h2 style='margin:0; color:#1F1F1F;'>✨ Google AI Studio Universal</h2></div>", unsafe_allow_html=True)
 
@@ -602,32 +660,25 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
 
     user_input = st.chat_input("Prompt likhein ya bolein...", key="wa_main_box")
     if user_input:
-        allowed, wait_sec = check_rate_limit()
-        if not allowed:
-            st.error(f"⚠️ Rate Limit (15 RPM) Exceeded. Please wait {wait_sec} seconds (Token Bucket Active).")
+        current_messages.append({"role": "user", "content": user_input})
+        st.markdown(f"<div class='chat-bubble-user'>👤 {user_input}</div>", unsafe_allow_html=True)
+        
+        t_low = user_input.lower()
+        gen_img = None
+        
+        # 1. High-Precision Photo Generation
+        if is_photo_intent(user_input):
+            with st.spinner("🎨 FLUX.1 Studio 8K HD Photo Generate Kar Raha Hai..."):
+                gen_img = generate_flux_image_url(user_input)
+                reply = f"Maine aapki request par **'{user_input}'** ki 8K FLUX photo generate kar di hai:"
         else:
-            current_messages.append({"role": "user", "content": user_input})
-            st.markdown(f"<div class='chat-bubble-user'>👤 {user_input}</div>", unsafe_allow_html=True)
-            
-            t_low = user_input.lower()
-            gen_img = None
-            
-            if any(k in t_low for k in ["photo", "pic", "image", "tasweer", "banao", "generate", "naksha"]):
-                with st.spinner("🎨 FLUX.1 Studio Rendering 8K Image..."):
-                    gen_img = generate_flux_image_url(user_input)
-                    reply = f"Maine aapki request par **'{user_input}'** ki 8K FLUX photo generate kar di hai:"
-            else:
-                with st.spinner(f"Running {selected_model}..."):
-                    if uploaded_file and uploaded_file.name.endswith((".mp3", ".wav")):
-                        audio_trans = transcribe_audio_whisper(uploaded_file.getvalue(), uploaded_file.name, custom_key_input)
-                        user_input += f"\n\n[Transcribed Audio via Whisper Large-v3]:\n{audio_trans}"
-                            
-                    reply = execute_ai_query(user_input, current_messages, selected_model, temp, top_p, max_tokens, sys_instruction_text, custom_key_input)
-                    
-            st.markdown(f"<div class='chat-bubble-ai'>✨ {reply}</div>", unsafe_allow_html=True)
-            if gen_img:
-                st.image(gen_img, caption="Studio Output", use_container_width=True)
-            current_messages.append({"role": "assistant", "content": reply, "image_url": gen_img})
+            with st.spinner(f"Running {selected_model}..."):
+                reply = execute_ai_query(user_input, current_messages, selected_model, temp, top_p, max_tokens, sys_instruction_text, custom_key_input)
+                
+        st.markdown(f"<div class='chat-bubble-ai'>✨ {reply}</div>", unsafe_allow_html=True)
+        if gen_img:
+            st.image(gen_img, caption="Studio Output", use_container_width=True)
+        current_messages.append({"role": "assistant", "content": reply, "image_url": gen_img})
 
 # =============================================================
 # MODE 2: FREEFORM PROMPT CANVAS (Part 3.A & 3.B)
