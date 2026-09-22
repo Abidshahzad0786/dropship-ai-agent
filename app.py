@@ -15,7 +15,7 @@ from PIL import Image
 # 1. PAGE CONFIGURATION & WHATSAPP THEME
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="Universal Master AI Copilot",
+    page_title="Universal AI Master Copilot",
     page_icon="👑",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Master AI Copilot hoon. Software coding, business strategy, viral scripts, world knowledge, photo generation ya WhatsApp control—jo chahein bolein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Master AI Copilot hoon. Sehat (Health), coding, business, dunya ki geography, photo generation ya WhatsApp control—kuch bhi bolein."}
         ]
     }
 
@@ -139,7 +139,7 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. LIVE TIME & WORLD TIMEZONES
+# 3. LIVE REAL-TIME DATE, TIME & TIMEZONES
 # -------------------------------------------------------------
 MONTHS_URDU = {
     1: "January", 2: "February", 3: "March", 4: "April",
@@ -165,13 +165,10 @@ def get_live_time_and_date(text):
         if "america" in t or "usa" in t or "us" in t:
             us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
             us_pst = (now - datetime.timedelta(hours=12)).strftime("%I:%M %p")
-            return f"America mein timezones:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
+            return f"America mein mukhtalif timezones hain:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
         elif "dubai" in t or "uae" in t:
             dubai_time = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
-            return f"Dubai / UAE mein time **{dubai_time}** ho raha hai."
-        elif "london" in t or "uk" in t:
-            uk_time = (now - datetime.timedelta(hours=4)).strftime("%I:%M %p")
-            return f"London / UK mein time **{uk_time}** ho raha hai."
+            return f"Dubai / UAE mein is waqt time **{dubai_time}** ho raha hai."
         elif "time" in t or "waqt" in t:
             return f"Is waqt time **{local_time}** hai aur aaj **{formatted_date}** ({day_name}) hai."
         else:
@@ -179,40 +176,79 @@ def get_live_time_and_date(text):
     return None
 
 # -------------------------------------------------------------
-# 4. UNIVERSAL MASTER PROMPT BRAIN (All Personas Included)
+# 4. UNIVERSAL EXPERT ADVISOR (Health, Coding, Business, Geography)
 # -------------------------------------------------------------
-MASTER_SYSTEM_INSTRUCTION = """
-Aap aik World-Class Universal Executive AI Copilot hain. Aap Roman Urdu aur English dono mein expert hain.
+def get_expert_direct_solution(text):
+    """Har qisam ke aam ya medical maslay ka fori expert solution"""
+    t = text.lower()
+    
+    # 1. Daant (Teeth) Kharab / Pain / Cavity
+    if any(k in t for k in ["dant", "dany", "daant", "teeth", "tooth", "keeda"]):
+        return (
+            "**Daant (Teeth) Kharab Hon Ya Dard Ho To Yeh Karein:**\n\n"
+            "1. **Fori Gharelu Ilaj (Home Relief):**\n"
+            "   • **Neem Garam Pani + Namak:** Aik cup neem garam pani mein aadha chamach namak mila kar din mein 3 martaba kulla (rinse) karein. Yeh bacteria ko maarta hai.\n"
+            "   • **Laung (Clove):** Dard wali jagah par aik laung dabayein ya laung ka tail (clove oil) lagayein, yeh foran dard theek karta hai.\n\n"
+            "2. **Dentist Ka Checkup:**\n"
+            "   • Agar keeda (cavity) laga hai to dentist se **Filling** karwayein.\n"
+            "   • Agar dard shadeed hai aur jaron tak infection hai to **Root Canal (RCT)** zaroori hota hai.\n\n"
+            "3. **Safai Aur Parhaiz:**\n"
+            "   • Din mein 2 martaba (subha aur raat sonay se pehle) 2 minute achi tarah brush karein.\n"
+            "   • Zyada meethi cheezein, cold drinks aur sakht cheezon se parhaiz karein."
+        )
 
-Aapke Core Roles aur Frameworks:
-1. **Software Engineering & Coding:**
-   - Jab code maanga jaye to Senior Full-Stack Developer ban kar clean, modular, production-ready code dein (Python, JS, React, PHP, SQL).
-   - Error handling, validation aur comments shamil karein.
+    # 2. Sir Dard (Headache)
+    if any(k in t for k in ["sir dard", "sar dard", "headache", "migraine"]):
+        return (
+            "**Sir Dard (Headache) Ka Asan Aur Fori Hal:**\n\n"
+            "1. **Pani Piyein:** Aksar sir dard pani ki kami (dehydration) se hota hai. Foran 2 gilaas taza pani piyein.\n"
+            "2. **Andhere Kamray Mein Aaram:** Screen (mobile/laptop) band karke 15 se 20 minute ankhein band karke aaram karein.\n"
+            "3. **Gardan Ki Massage:** Gardan aur mathey par thoda sa balm ya tel laga kar halke hath se massage karein.\n"
+            "4. **Adrak Wali Chai ya Qahwa:** Aik cup adrak (ginger) wali chai piyein, yeh blood circulation behtar karti hai."
+        )
 
-2. **Business, Marketing & CMO:**
-   - Go-to-market (GTM) launch roadmaps, High-converting ad copies (AIDA, PAS hooks), Dropshipping profit economics, Unit economics calculate karein.
+    # 3. Dropshipping & Business Guidance
+    if any(k in t for k in ["dropshipping", "shopify", "tiktok shop", "ecommerce", "online business"]):
+        return (
+            "**Dropshipping / Online Business Shuru Karne Ka Complete Roadmap:**\n\n"
+            "1. **Winning Product:** TikTok Creative Center ya CJ Dropshipping par wo product dhoondein jo problem solve karti ho aur trend mein ho.\n"
+            "2. **Store Setup:** Shopify ya TikTok Shop par clean aur professional store banayein.\n"
+            "3. **Supplier:** CJ Dropshipping ya Ali-Express se fast shipping wala supplier connect karein.\n"
+            "4. **Marketing (Ads):** TikTok aur Facebook par short engaging video ads chalayein (Hook -> Problem -> Solution -> CTA).\n"
+            "5. **Profit Margin:** Product price aisi rakhein jismein ad cost nikaal kar kam az kam **30% se 40% net profit** bache."
+        )
 
-3. **Executive Communications & Negotiation:**
-   - Professional, authoritative aur firm emails/letters likhein (payment recovery, client proposals, contracts).
+    # 4. Philippines & World Geography
+    if "philippines" in t:
+        return (
+            "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
+            "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein Pacific Ocean ke maghribi hissay mein waqea hai.\n\n"
+            "• **Islands:** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
+            "• **Capital:** **Manila** hai.\n"
+            "• **Aas Paas:** Iske maghrib mein South China Sea aur Vietnam hai, aur junoob mein Indonesia/Malaysia hain."
+        )
 
-4. **Academic Professor & Tutor:**
-   - Mushkil topics ko pehle 10 saal ke bache ki tarah asaan misaal (analogy) se samjhayein, phir technical terms explain karein.
+    if "america" in t and any(k in t for k in ["kahan", "kahna", "location"]):
+        return (
+            "**America (USA) Dunya Mein Kahan Waqea Hai?**\n\n"
+            "America **Shimali America (North America)** mein waqea hai.\n\n"
+            "• **Shimal (North):** Canada ke sath border hai.\n"
+            "• **Junoob (South):** Mexico aur Gulf of Mexico hai.\n"
+            "• **Mashriq (East):** Atlantic Ocean hai.\n"
+            "• **Maghrib (West):** Pacific Ocean hai.\n\n"
+            "Iska capital **Washington, D.C.** hai aur iski kul **50 states** hain."
+        )
 
-5. **Viral Video Scriptwriter:**
-   - YouTube / Reels ke scripts likhte waqt brackets mein [Visual cues, B-Roll, Sound effects], 15-second curiosity hooks, aur CTA shamil karein.
+    return None
 
-6. **Reverse Prompting:**
-   - Agar user broad business/life plan maange to pehle 4-5 zaroori sawalat pooch kar samajhein, phir solid roadmap dein.
-
-7. **Tooti-Phooti Zaban Samajhna:**
-   - User agar spelling ghalat likhe ya Roman Urdu tooti phooti ho, uska maqsad foran samajh kar seedha mukammal solution dein.
-"""
-
+# -------------------------------------------------------------
+# 5. UNIVERSAL MULTI-LAYER AI BRAIN
+# -------------------------------------------------------------
 def fetch_wikipedia_knowledge(clean_topic):
     try:
         url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_topic)}"
-        headers = {"User-Agent": "UniversalMasterCopilot/6.0"}
-        res = requests.get(url, headers=headers, timeout=5)
+        headers = {"User-Agent": "UniversalMasterCopilot/7.0"}
+        res = requests.get(url, headers=headers, timeout=4)
         if res.status_code == 200:
             data = res.json()
             return data.get("extract", "")
@@ -221,55 +257,53 @@ def fetch_wikipedia_knowledge(clean_topic):
     return None
 
 def generate_ai_response(user_text, conversation_history):
-    t_low = user_text.lower().strip()
-    
-    # Live Time & Date
-    time_ans = get_live_time_and_date(user_text)
-    if time_ans:
-        return time_ans
+    # 1. Live Time Check
+    time_res = get_live_time_and_date(user_text)
+    if time_res:
+        return time_res
 
-    # Geography Quick Answers
-    if "philippines" in t_low and ("kahan" in t_low or "kahna" in t_low):
-        return (
-            "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
-            "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein waqea aik jazeera numa (archipelago) mulk hai.\n"
-            "• **Islands:** Taqreeban **7,641 jazair** par mushtamil hai.\n"
-            "• **Capital:** **Manila** hai.\n"
-            "• **Location:** Pacific Ocean ke maghribi hissay mein waqea hai."
-        )
+    # 2. Expert Direct Advisor Check (Health, Math, Geography, Business)
+    advisor_res = get_expert_direct_solution(user_text)
+    if advisor_res:
+        return advisor_res
 
-    # Live Wikipedia Search for Global Knowledge
+    # 3. Live Web Knowledge Fetch
     extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|main|mein|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
     live_info = ""
     if len(extracted_topic) >= 3:
         live_info = fetch_wikipedia_knowledge(extracted_topic) or ""
 
-    # Multi-turn history context
+    # 4. Multi-turn history context
     history_context = ""
     for m in conversation_history[-6:]:
         history_context += f"{m['role']}: {m['content']}\n"
 
-    final_sys_prompt = f"{MASTER_SYSTEM_INSTRUCTION}\n\nLive Fact Reference: {live_info}\nPichla Context:\n{history_context}"
+    sys_prompt = (
+        "Aap dunya ke sab se intelligent, mature aur solution-oriented Executive AI Assistant hain. "
+        "Aap Roman Urdu mein direct, informative aur insano jaisa tafseeli jawab dete hain.\n"
+        f"Fact Reference: {live_info}\n"
+        f"Pichla Context:\n{history_context}\n"
+        "User agar tooti phooti zaban ya spelling mistake kare, uska matlab samajh kar mukammal step-by-step practical hal samjhayein."
+    )
 
-    # Gateway 1: Pollinations OpenAI Gateway
+    # Multi-Tier LLM Router
     try:
-        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(final_sys_prompt)}&model=openai"
-        res_t = requests.get(url_t, timeout=8)
+        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
+        res_t = requests.get(url_t, timeout=7)
         if res_t.status_code == 200 and len(res_t.text.strip()) > 15:
             txt = res_t.text.strip()
-            if "I'm sorry" not in txt and "wazahat" not in txt:
+            if "I'm sorry" not in txt:
                 return txt
     except Exception:
         pass
 
-    # Gateway 2: Gemini API via Secrets (If Set)
     gemini_key = st.secrets.get("GEMINI_API_KEY", "")
     if gemini_key:
         try:
             url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
             headers_g = {"Content-Type": "application/json"}
             payload_g = {
-                "system_instruction": {"parts": [{"text": final_sys_prompt}]},
+                "system_instruction": {"parts": [{"text": sys_prompt}]},
                 "contents": [{"role": "user", "parts": [{"text": user_text}]}]
             }
             res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
@@ -279,12 +313,16 @@ def generate_ai_response(user_text, conversation_history):
             pass
 
     if live_info:
-        return f"**{extracted_topic.title()}** ke hawale se maloomat:\n\n{live_info}"
+        return f"**{extracted_topic.title()}** ke hawale se tafseel:\n\n{live_info}"
 
-    return f"Aapka sawal '{user_text}' samajh aa gaya hai. Is hawale se mukammal step-by-step detail ke liye batayein main foran guide karta hoon."
+    return (
+        f"Aapne **'{user_text}'** ke baray mein poocha hai.\n\n"
+        "Main is maslay par mukammal rehn обра ya strategy provide kar sakta hoon. "
+        "Baraye meherbani batayein ke aapko is hawale se makhsoos tareeqa-e-kar chahiye ya koi khas sawal hai?"
+    )
 
 # -------------------------------------------------------------
-# 5. SMART PROMPT & IMAGE ENGINE (FLUX.1)
+# 6. SMART PROMPT & IMAGE ENGINE (FLUX.1)
 # -------------------------------------------------------------
 def is_photo_intent(text):
     t = text.lower()
@@ -299,7 +337,7 @@ def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
     
     if any(c in t for c in ["couple", "larka larki", "romantic"]):
-        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, warm aesthetic lighting, detailed faces, 8k resolution"
+        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, romantic aesthetic lighting, high detail faces, 8k resolution"
     
     if "naksha" in t or "map" in t:
         if "china" in t:
@@ -343,7 +381,7 @@ def search_contacts(query):
     return matches
 
 # -------------------------------------------------------------
-# 6. SIDEBAR (History & Multi-Chat)
+# 7. SIDEBAR (History & Multi-Chat)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 💬 Chat History")
@@ -368,7 +406,7 @@ with st.sidebar:
         st.image(Image.open(up_file), caption="Selected Photo", use_container_width=True)
 
 # -------------------------------------------------------------
-# 7. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
+# 8. CHAT MESSAGES DISPLAY (With WhatsApp-Style 3-Dots Copy Menu)
 # -------------------------------------------------------------
 st.markdown(f"<div style='text-align:center; padding-bottom:8px;'><h3 style='margin:0; color:#111B21;'>✨ {st.session_state.active_chat}</h3></div>", unsafe_allow_html=True)
 
@@ -405,7 +443,7 @@ for idx, msg in enumerate(current_messages):
             st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 8. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
+# 9. PERFECT SINGLE HORIZONTAL ROW: [+] [INPUT] [MIC]
 # -------------------------------------------------------------
 components.html("""
 <script>
@@ -572,9 +610,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. UNIVERSAL MASTER REASONING & SOLUTIONS (Dev, Marketing, Writing, Education, Knowledge)
+    # 4. UNIVERSAL MASTER ADVISOR & KNOWLEDGE
     else:
-        with st.spinner("AI master framework se solution analyze kar raha hai..."):
+        with st.spinner("AI deep solution aur facts analyze kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
