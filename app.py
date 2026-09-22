@@ -134,10 +134,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 3. 100% PRIVATE SECRETS LOADER (No GitHub Leak)
+# 3. DATABASE & PERSISTENCE
 # -------------------------------------------------------------
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "").strip()
-
 def load_json_db(file_path, default_data):
     if os.path.exists(file_path):
         try:
@@ -156,7 +154,7 @@ def save_json_db(file_path, data):
 
 if "api_keys_db" not in st.session_state:
     st.session_state.api_keys_db = load_json_db(DB_KEYS_FILE, {
-        "studio-live-demo-key-12345": {"project": "Default Project", "rpm_limit": 15, "created_at": "2026-09-20", "status": "Active"}
+        "studio-demo-key-001": {"project": "Default Project", "rpm_limit": 15, "created_at": "2026-09-20", "status": "Active"}
     })
 
 if "saved_prompts_db" not in st.session_state:
@@ -178,7 +176,7 @@ if "rate_limit_tracker" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon. Llama 3.3 (70B), Whisper Audio, Qwen2-VL Vision, aur Coding—sab active hai."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon (Powered by Groq Llama 3.3 70B). Geography, science, history, coding, photo generation ya WhatsApp—jo chahein poochein."}
         ]
     }
 
@@ -195,8 +193,11 @@ if "few_shot_data" not in st.session_state:
     ]
 
 # -------------------------------------------------------------
-# 4. RATE LIMITER & MEDIA HELPERS
+# 4. 100% PRIVATE SECRETS LOADER (No Plaintext Key in Code)
 # -------------------------------------------------------------
+GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "").strip()
+OPENROUTER_KEY = st.secrets.get("OPENROUTER_API_KEY", "").strip()
+
 def check_rate_limit(client_id="default_user", max_rpm=15):
     now = datetime.datetime.now()
     tracker = st.session_state.rate_limit_tracker.get(client_id, [])
@@ -209,9 +210,9 @@ def check_rate_limit(client_id="default_user", max_rpm=15):
     return True, 0
 
 def transcribe_audio_whisper(audio_bytes, filename="audio.mp3", active_key=""):
-    key_to_use = active_key or GROQ_API_KEY
+    key_to_use = re.sub(r'["\']', '', str(active_key or GROQ_API_KEY)).strip()
     if not key_to_use:
-        return "⚠️ Groq key missing."
+        return "⚠️ Groq key missing in Secrets."
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
     headers = {"Authorization": f"Bearer {key_to_use}"}
     files = {"file": (filename, audio_bytes, "audio/mpeg")}
@@ -220,7 +221,7 @@ def transcribe_audio_whisper(audio_bytes, filename="audio.mp3", active_key=""):
         res = requests.post(url, headers=headers, files=files, data=data, timeout=20)
         if res.status_code == 200:
             return res.json().get("text", "")
-        return f"Whisper Status ({res.status_code})"
+        return f"Whisper Error ({res.status_code})"
     except Exception as e:
         return f"Audio Error: {str(e)}"
 
@@ -246,7 +247,7 @@ def generate_flux_image_url(prompt_text):
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 # -------------------------------------------------------------
-# 5. GROQ LPU ENGINE (Direct Llama 3.3 70B)
+# 5. DIRECT GROQ LLAMA 3.3 (70B) ENGINE
 # -------------------------------------------------------------
 MASTER_SYSTEM_INSTRUCTION = """
 Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain (Powered by Groq Llama 3.3 70B).
@@ -259,7 +260,7 @@ Aapke Qawaid:
 """
 
 def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile", temp=0.7, top_p=0.9, max_tokens=2048, sys_prompt="", active_key=""):
-    key_to_use = active_key or GROQ_API_KEY
+    key_to_use = re.sub(r'["\']', '', str(active_key or GROQ_API_KEY)).strip()
     cache_key = f"{model}_{prompt_text.strip()[:100]}"
     
     if cache_key in st.session_state.prompt_cache:
@@ -271,29 +272,48 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": prompt_text})
 
-    # Groq API Call
+    # Call Groq API
     if key_to_use:
         headers_g = {
             "Authorization": f"Bearer {key_to_use}",
             "Content-Type": "application/json"
         }
+        
+        groq_model_name = "llama-3.3-70b-versatile"
+        if "deepseek" in model:
+            groq_model_name = "deepseek-r1-distill-llama-70b"
+        elif "qwen" in model:
+            groq_model_name = "qwen-2.5-32b"
+        elif "gemma" in model:
+            groq_model_name = "gemma2-9b-it"
+
         payload_g = {
-            "model": "llama-3.3-70b-versatile",
+            "model": groq_model_name,
             "messages": messages,
-            "temperature": temp,
-            "max_tokens": max_tokens
+            "temperature": float(temp),
+            "max_tokens": int(max_tokens),
+            "top_p": float(top_p)
         }
+        
         try:
-            res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=12)
+            res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
             if res_g.status_code == 200:
                 reply = res_g.json()["choices"][0]["message"]["content"]
                 st.session_state.prompt_cache[cache_key] = reply
                 save_json_db(CACHE_FILE, st.session_state.prompt_cache)
                 return reply
+            else:
+                payload_g["model"] = "llama-3.1-8b-instant"
+                res_g2 = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
+                if res_g2.status_code == 200:
+                    reply2 = res_g2.json()["choices"][0]["message"]["content"]
+                    st.session_state.prompt_cache[cache_key] = reply2
+                    save_json_db(CACHE_FILE, st.session_state.prompt_cache)
+                    return reply2
         except Exception:
             pass
 
-    # Instant Geography Direct Response
+    # Direct Geography Fallback
     t_low = prompt_text.lower()
     if "pakistan" in t_low:
         return (
@@ -303,7 +323,7 @@ def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile",
             "Pakistan ka kul raqba taqreeban **881,913 sq km** hai aur iska capital **Islamabad** hai."
         )
 
-    return f"Main aapke sawal '{prompt_text}' par mukammal maloomat faraham kar raha hoon."
+    return f"Aapka sawal '{prompt_text}' samajh aa gaya hai. Main is par mukammal maloomat faraham kar raha hoon."
 
 # -------------------------------------------------------------
 # 6. "GET CODE" EXPORT
@@ -378,6 +398,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🔑 Groq Key Input")
     custom_key_input = st.text_input("Groq API Key (If updated):", value=GROQ_API_KEY, type="password", placeholder="gsk_...")
+    if custom_key_input:
+        GROQ_API_KEY = re.sub(r'["\']', '', str(custom_key_input)).strip()
     
     st.markdown("---")
     st.markdown("### 🎛️ Model Parameters")
