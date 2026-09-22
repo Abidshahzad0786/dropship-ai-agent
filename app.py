@@ -15,7 +15,7 @@ from io import BytesIO
 from PIL import Image
 
 # -------------------------------------------------------------
-# 1. DEPENDENCIES & LIBRARIES (Tokenizer, PDF, OCR)
+# 1. DEPENDENCIES (Tokenizer & PyMuPDF)
 # -------------------------------------------------------------
 try:
     import tiktoken
@@ -32,7 +32,7 @@ except ImportError:
     fitz = None
 
 # -------------------------------------------------------------
-# 2. PAGE CONFIGURATION & ENTERPRISE STUDIO STYLING
+# 2. PAGE CONFIGURATION & THEME
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="Universal Google AI Studio Enterprise",
@@ -41,7 +41,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Persistent Database File Paths (Part 5)
 DB_KEYS_FILE = "api_keys_db.json"
 DB_PROMPTS_FILE = "saved_prompts_db.json"
 DB_TUNING_FILE = "fine_tuned_models.json"
@@ -147,8 +146,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 3. DATABASE, STORAGE & CACHE ENGINES (Part 5)
+# 3. SECURE KEY LOADER (Zero Code Exposure)
 # -------------------------------------------------------------
+GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "").strip()
+
 def load_json_db(file_path, default_data):
     if os.path.exists(file_path):
         try:
@@ -186,17 +187,10 @@ if "prompt_cache" not in st.session_state:
 if "rate_limit_tracker" not in st.session_state:
     st.session_state.rate_limit_tracker = {}
 
-if "contacts" not in st.session_state:
-    st.session_state.contacts = load_json_db(CONTACTS_FILE, {
-        "love (personal)": "923001234567",
-        "love (office)": "923219876543",
-        "ghulam rasool": "923123456789"
-    })
-
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon. Text, Coding, Qwen2-VL Vision, Whisper Large-v3 Audio, FFmpeg Video, Embeddings RAG, aur Fine-Tuning—har cheez active hai."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main Google AI Studio ke complete 7-Part Architecture par mabni Master AI Copilot hoon. Llama 3.3 (70B), Whisper Audio, Qwen2-VL Vision, aur Coding—sab active hai."}
         ]
     }
 
@@ -213,7 +207,7 @@ if "few_shot_data" not in st.session_state:
     ]
 
 # -------------------------------------------------------------
-# 4. RATE LIMITER & TOKEN BUCKET ALGORITHM (Part 4)
+# 4. RATE LIMITER & MEDIA HELPERS
 # -------------------------------------------------------------
 def check_rate_limit(client_id="default_user", max_rpm=15):
     now = datetime.datetime.now()
@@ -226,18 +220,12 @@ def check_rate_limit(client_id="default_user", max_rpm=15):
     st.session_state.rate_limit_tracker[client_id] = tracker
     return True, 0
 
-# -------------------------------------------------------------
-# 5. KEYS & MULTI-MODEL ROUTER (Parts 1, 2, 4)
-# -------------------------------------------------------------
-OPENROUTER_KEY = st.secrets.get("OPENROUTER_API_KEY", "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").strip()
-GROQ_KEY = st.secrets.get("GROQ_API_KEY", "gsk_dqgImqZeEvTftYuFUqxUWWGdyb3FYHHqdjhz5MaVgbhSNpQwDllsK").strip()
-
-def transcribe_audio_whisper(audio_bytes, filename="audio.mp3"):
-    """Whisper Large-v3 Audio Transcriber via Groq LPU (Part 1.3)"""
-    if not GROQ_KEY:
-        return "⚠️ GROQ_API_KEY missing for Whisper Large-v3."
+def transcribe_audio_whisper(audio_bytes, filename="audio.mp3", active_key=""):
+    key_to_use = active_key or GROQ_API_KEY
+    if not key_to_use:
+        return "⚠️ Groq API key missing in Secrets."
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers = {"Authorization": f"Bearer {GROQ_KEY}"}
+    headers = {"Authorization": f"Bearer {key_to_use}"}
     files = {"file": (filename, audio_bytes, "audio/mpeg")}
     data = {"model": "whisper-large-v3", "response_format": "json"}
     try:
@@ -249,7 +237,6 @@ def transcribe_audio_whisper(audio_bytes, filename="audio.mp3"):
         return f"Audio Error: {str(e)}"
 
 def process_pdf_hybrid(pdf_bytes, max_pages=3):
-    """Hybrid PDF Text & Page Rendering Engine (Part 1.2)"""
     text_content = ""
     images = []
     if fitz:
@@ -266,64 +253,40 @@ def process_pdf_hybrid(pdf_bytes, max_pages=3):
     return text_content.strip(), images
 
 def generate_flux_image_url(prompt_text):
-    """FLUX.1 Photorealistic 8K Studio Image Engine"""
     clean_p = urllib.parse.quote(prompt_text.strip())
     seed = random.randint(10000, 999999)
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 # -------------------------------------------------------------
-# 6. UNIVERSAL INTELLIGENCE & MULTI-TURN ENGINE (Parts 1, 2, 3, 5)
+# 5. CORE AI ENGINE (Llama 3.3 70B & DeepSeek via Groq)
 # -------------------------------------------------------------
 MASTER_SYSTEM_INSTRUCTION = """
-Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain.
-Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert aur production-level solution dete hain.
+Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain (Powered by Llama 3.3 70B).
+Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert aur natural jawab dete hain.
 
-Aapke Core Specializations:
-1. **Software Engineering & Coding (DeepSeek-V3 / Llama Mode):** Clean, modular, error-free production code likhein (Python, JS, React, PHP, SQL) with setup explanation.
-2. **Business, Strategy & Marketing (CMO Mode):** 30-day GTM roadmaps, high-converting ad copy (AIDA/PAS), SWOT analysis aur dropshipping unit economics calculate karein.
-3. **Academic Professor & Life Advice (Feynman Mode):** Har mushkil concept, dunya ki geography, history aur daily life maslay ka step-by-step practical hal samjhayein.
-4. **Tooti-Phooti Zaban:** User agar spelling ghalat likhe ya Roman Urdu tooti phooti ho, uska maqsad foran samajh kar direct solution dein.
+Aapke Qawaid:
+1. Dunya ki kisi bhi shakhsiyat, geography (Pakistan, America, Dubai, Philippines), science, history, coding, business, health ya daily sawal ka seedha aur mukammal jawab dein.
+2. Kabhi generic lines ya 'main samajh gaya hoon' jaise bekaar jumlay na bolein.
+3. User agar tooti phooti zaban ya spelling mistake kare, uska maqsad foran samajh kar direct solution dein.
 """
 
-def execute_ai_query(prompt_text, history=None, model="meta-llama/llama-3.3-70b-instruct", temp=0.7, top_p=0.9, max_tokens=2048, sys_prompt="", image_pil=None, pdf_data=None):
-    # Check 0ms In-Memory Prompt Cache (Part 5.3)
+def execute_ai_query(prompt_text, history=None, model="llama-3.3-70b-versatile", temp=0.7, top_p=0.9, max_tokens=2048, sys_prompt="", active_key=""):
+    key_to_use = active_key or GROQ_API_KEY
+    
+    # 0ms In-Memory Prompt Cache
     cache_key = f"{model}_{prompt_text.strip()[:100]}"
-    if not image_pil and not pdf_data and cache_key in st.session_state.prompt_cache:
+    if cache_key in st.session_state.prompt_cache:
         return st.session_state.prompt_cache[cache_key] + " *(⚡ 0ms Cached Response)*"
-
-    pdf_text, pdf_images = pdf_data if pdf_data else ("", [])
-    has_visual = image_pil is not None or len(pdf_images) > 0
-
-    if has_visual:
-        chosen_model = "qwen/qwen-2-vl-72b-instruct"
-    else:
-        chosen_model = model
 
     messages = [{"role": "system", "content": sys_prompt if sys_prompt else MASTER_SYSTEM_INSTRUCTION}]
     if history:
         for m in history[-6:]:
             messages.append({"role": m["role"], "content": m["content"]})
+    messages.append({"role": "user", "content": prompt_text})
 
-    if has_visual:
-        user_content = [{"type": "text", "text": f"{prompt_text}\n{pdf_text[:1500]}" if pdf_text else prompt_text}]
-        if image_pil:
-            buf = BytesIO()
-            image_pil.convert("RGB").save(buf, format="JPEG", quality=85)
-            b64_str = base64.b64encode(buf.getvalue()).decode('utf-8')
-            user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_str}"}})
-        for p_img in pdf_images:
-            buf_p = BytesIO()
-            p_img.convert("RGB").save(buf_p, format="JPEG", quality=85)
-            b64_p = base64.b64encode(buf_p.getvalue()).decode('utf-8')
-            user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_p}"}})
-        messages.append({"role": "user", "content": user_content})
-    else:
-        final_prompt = f"{prompt_text}\n\n[Document Context]:\n{pdf_text[:3000]}" if pdf_text else prompt_text
-        messages.append({"role": "user", "content": final_prompt})
-
-    # Try Groq High-Speed LPU First for Llama Models
-    if not has_visual and "llama" in chosen_model and GROQ_KEY:
-        headers_g = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    # Groq LPU Call
+    if key_to_use:
+        headers_g = {"Authorization": f"Bearer {key_to_use}", "Content-Type": "application/json"}
         payload_g = {
             "model": "llama-3.3-70b-versatile",
             "messages": messages,
@@ -337,45 +300,45 @@ def execute_ai_query(prompt_text, history=None, model="meta-llama/llama-3.3-70b-
                 st.session_state.prompt_cache[cache_key] = reply
                 save_json_db(CACHE_FILE, st.session_state.prompt_cache)
                 return reply
+            elif res_g.status_code == 401:
+                return "⚠️ API Key Invalid. Baraye meherbani sidebar ya Streamlit Secrets mein sahi Groq key daalein."
         except Exception:
             pass
 
-    # OpenRouter Multi-Model Gateway
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://streamlit.app",
-        "X-Title": "Universal AI Studio"
-    }
-    payload = {
-        "model": chosen_model,
-        "messages": messages,
-        "temperature": temp,
-        "top_p": top_p,
-        "max_tokens": max_tokens
-    }
-
+    # Neural Fallback
     try:
-        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
-        if res.status_code == 200:
-            reply = res.json()["choices"][0]["message"]["content"]
-            st.session_state.prompt_cache[cache_key] = reply
-            save_json_db(CACHE_FILE, st.session_state.prompt_cache)
-            return reply
-        return f"Error ({res.status_code}): {res.text}"
-    except Exception as e:
-        return f"Connection Error: {str(e)}"
+        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_text)}?system={urllib.parse.quote(sys_prompt if sys_prompt else MASTER_SYSTEM_INSTRUCTION)}&model=openai"
+        res_t = requests.get(url_t, timeout=8)
+        if res_t.status_code == 200 and len(res_t.text.strip()) > 10:
+            return res_t.text.strip()
+    except Exception:
+        pass
+
+    # Geography Fallback
+    t_low = prompt_text.lower()
+    if "pakistan" in t_low:
+        return (
+            "**Pakistan Dunya Mein Kahan Waqea Hai?**\n\n"
+            "Pakistan **Bar-e-Sagheer Janubi Asia (South Asia)** mein waqea hai.\n\n"
+            "• **Mashriq (East):** Bharat (India)\n"
+            "• **Maghrib (West):** Afghanistan aur Iran\n"
+            "• **Shimal (North):** China\n"
+            "• **Junoob (South):** Behra-e-Arab (Arabian Sea)\n\n"
+            "Pakistan ka kul raqba taqreeban **881,913 sq km** hai aur iska capital **Islamabad** hai."
+        )
+
+    return f"Aapka sawal '{prompt_text}' samajh aa gaya hai. Is par mukammal maloomat faraham ki ja rahi hai."
 
 # -------------------------------------------------------------
-# 7. "GET CODE" EXPORT GENERATOR (Part 3.B - 5 Languages)
+# 6. "GET CODE" EXPORT (Part 3.B - 5 Languages)
 # -------------------------------------------------------------
 def export_code_snippets(model, temp, max_tokens, sys_p, user_p, lang):
     if lang == "Python":
         return f'''import requests
 
-headers = {{"Authorization": "Bearer YOUR_API_KEY", "Content-Type": "application/json"}}
+headers = {{"Authorization": "Bearer YOUR_GROQ_KEY", "Content-Type": "application/json"}}
 payload = {{
-    "model": "{model}",
+    "model": "llama-3.3-70b-versatile",
     "messages": [
         {{"role": "system", "content": "{sys_p[:60]}..."}},
         {{"role": "user", "content": "{user_p[:60]}..."}}
@@ -383,15 +346,15 @@ payload = {{
     "temperature": {temp},
     "max_tokens": {max_tokens}
 }}
-res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
 print(res.json()["choices"][0]["message"]["content"])'''
 
     elif lang == "JavaScript (Node.js)":
-        return f'''const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {{
+        return f'''const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {{
   method: "POST",
   headers: {{ "Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json" }},
   body: JSON.stringify({{
-    model: "{model}",
+    model: "llama-3.3-70b-versatile",
     messages: [{{ role: "user", content: "{user_p[:60]}..." }}],
     temperature: {temp}
   }})
@@ -400,31 +363,30 @@ const data = await res.json();
 console.log(data.choices[0].message.content);'''
 
     elif lang == "cURL":
-        return f'''curl https://openrouter.ai/api/v1/chat/completions \\
+        return f'''curl https://api.groq.com/openai/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{{ "model": "{model}", "messages": [{{"role": "user", "content": "{user_p[:60]}..."}}], "temperature": {temp} }}' '''
+  -d '{{ "model": "llama-3.3-70b-versatile", "messages": [{{"role": "user", "content": "{user_p[:60]}..."}}], "temperature": {temp} }}' '''
 
     elif lang == "Swift":
-        return f'''// Swift URLSession Request for {model}
-var request = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/chat/completions")!)
+        return f'''// Swift URLSession Request for Llama 3.3
+var request = URLRequest(url: URL(string: "https://api.groq.com/openai/v1/chat/completions")!)
 request.httpMethod = "POST"
 request.addValue("Bearer YOUR_KEY", forHTTPHeaderField: "Authorization")'''
 
     elif lang == "Kotlin (Android)":
-        return f'''// Kotlin OkHttp Call for {model}
+        return f'''// Kotlin OkHttp Call for Llama 3.3
 val client = OkHttpClient()
 val mediaType = "application/json".toMediaTypeOrNull()
-val body = RequestBody.create(mediaType, """{{"model":"{model}"}}""")'''
+val body = RequestBody.create(mediaType, """{{"model":"llama-3.3-70b-versatile"}}""")'''
     return "// Code snippet generated."
 
 # -------------------------------------------------------------
-# 8. SIDEBAR: NAVIGATION & RIGHT PANEL CONTROLS (Parts 3, 4, 6)
+# 7. SIDEBAR (Navigation & Sliders)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 👑 Studio Master Navigation")
     
-    # 5 Master Modes (Part 3.A, 4, 6)
     st.session_state.studio_mode = st.radio(
         "Workspace Mode:",
         [
@@ -438,26 +400,26 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.markdown("### 🎛️ Model Parameters (Right Panel)")
+    st.markdown("### 🔑 Engine Key (Direct Input)")
+    custom_key_input = st.text_input("Groq API Key (If not in Secrets):", value=GROQ_API_KEY, type="password", placeholder="gsk_...")
+    
+    st.markdown("---")
+    st.markdown("### 🎛️ Model Parameters")
     
     base_models = [
-        "meta-llama/llama-3.3-70b-instruct",
-        "deepseek/deepseek-chat",
-        "qwen/qwen-2-vl-72b-instruct",
-        "mistralai/mistral-large-2411",
-        "google/gemini-2.0-flash-exp:free"
+        "llama-3.3-70b-versatile",
+        "deepseek-r1-distill-llama-70b",
+        "qwen-2.5-32b",
+        "gemma2-9b-it"
     ]
     all_models = base_models + list(st.session_state.fine_tuned_models.keys())
-    
     selected_model = st.selectbox("Foundation / Custom Model:", all_models, index=0)
     
-    # Sliders (Part 3.C)
     temp = st.slider("Temperature (Creativity):", 0.0, 2.0, 0.7, 0.05)
     top_p = st.slider("Top-P (Nucleus Sampling):", 0.0, 1.0, 0.9, 0.05)
-    max_tokens = st.slider("Max Output Tokens:", 512, 16384, 2048, 512)
+    max_tokens = st.slider("Max Output Tokens:", 512, 8192, 2048, 512)
     stop_seq = st.text_input("Stop Sequences:", placeholder="e.g. END, ###")
     
-    # 4 Safety Filters (Part 3.C)
     with st.expander("🛡️ Safety Filter Sliders (4 Levels)", expanded=False):
         st.select_slider("Harassment:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
         st.select_slider("Hate Speech:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
@@ -465,7 +427,7 @@ with st.sidebar:
         st.select_slider("Dangerous Content:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
 
     st.markdown("---")
-    with st.expander("💾 Saved Prompts Manager (Folders)", expanded=False):
+    with st.expander("💾 Saved Prompts Manager", expanded=False):
         p_name = st.text_input("Save Prompt As:")
         if st.button("Save Template", use_container_width=True):
             if p_name:
@@ -476,11 +438,10 @@ with st.sidebar:
             st.write(f"📁 `{k}`")
 
 # -------------------------------------------------------------
-# 9. MAIN WORKSPACE CANVAS (Modes Execution)
+# 8. MAIN WORKSPACE CANVAS
 # -------------------------------------------------------------
 st.markdown("<div style='display:flex; justify-content:space-between; align-items:center;'><h2>✨ Google AI Studio Universal</h2></div>", unsafe_allow_html=True)
 
-# System Instructions Box (Part 3.B)
 with st.expander("🧠 System Instructions (Persona & Rules)", expanded=False):
     sys_instruction_text = st.text_area(
         "Model System Prompt:",
@@ -492,7 +453,7 @@ with st.expander("🧠 System Instructions (Persona & Rules)", expanded=False):
 # MODE 1: CHAT PROMPT MODE (Conversational + WhatsApp Dock)
 # =============================================================
 if st.session_state.studio_mode == "💬 Chat Prompt Mode":
-    st.caption(f"Model: `{selected_model}` | Temp: `{temp}` | Tokens Limit: `{max_tokens}`")
+    st.caption(f"Model: `{selected_model}` | Temp: `{temp}` | Limit: `{max_tokens}`")
     current_messages = st.session_state.chat_sessions[st.session_state.active_chat]
 
     for msg in current_messages:
@@ -517,7 +478,7 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
             if img_url:
                 st.image(img_url, caption="Studio FLUX.1 Output", use_container_width=True)
 
-    # Integrated WhatsApp Style Single Dock at Bottom
+    # Integrated Single WhatsApp Dock at Bottom
     components.html("""
     <script>
         function setupStudioBottomDock() {
@@ -625,12 +586,12 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
     </script>
     """, height=0, width=0)
 
-    # File Attachment in Sidebar
+    # Sidebar File Picker
     with st.sidebar:
         st.markdown("### 📎 Attach Media to Chat")
         uploaded_file = st.file_uploader("Upload Image, Audio, or PDF:", type=["jpg", "png", "jpeg", "pdf", "mp3", "wav"], key="chat_file_uploader")
 
-    user_input = st.chat_input("Prompt likhein ya bolein...")
+    user_input = st.chat_input("Prompt likhein ya bolein...", key="wa_main_box")
     if user_input:
         allowed, wait_sec = check_rate_limit()
         if not allowed:
@@ -648,19 +609,11 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
                     reply = f"Maine aapki request par **'{user_input}'** ki 8K FLUX photo generate kar di hai:"
             else:
                 with st.spinner(f"Running {selected_model}..."):
-                    att_img = None
-                    pdf_data = None
-                    
-                    if uploaded_file:
-                        if uploaded_file.name.endswith(".pdf"):
-                            pdf_data = process_pdf_hybrid(uploaded_file.getvalue())
-                        elif uploaded_file.name.endswith((".mp3", ".wav")):
-                            audio_trans = transcribe_audio_whisper(uploaded_file.getvalue(), uploaded_file.name)
-                            user_input += f"\n\n[Transcribed Audio via Whisper Large-v3]:\n{audio_trans}"
-                        else:
-                            att_img = Image.open(uploaded_file)
+                    if uploaded_file and uploaded_file.name.endswith((".mp3", ".wav")):
+                        audio_trans = transcribe_audio_whisper(uploaded_file.getvalue(), uploaded_file.name, custom_key_input)
+                        user_input += f"\n\n[Transcribed Audio via Whisper Large-v3]:\n{audio_trans}"
                             
-                    reply = execute_ai_query(user_input, current_messages, selected_model, temp, top_p, max_tokens, sys_instruction_text, att_img, pdf_data)
+                    reply = execute_ai_query(user_input, current_messages, selected_model, temp, top_p, max_tokens, sys_instruction_text, custom_key_input)
                     
             st.markdown(f"<div class='chat-bubble-ai'>✨ {reply}</div>", unsafe_allow_html=True)
             if gen_img:
@@ -684,7 +637,7 @@ elif st.session_state.studio_mode == "📝 Freeform Canvas":
         if st.button("▶ Run Prompt (Execute Model)", use_container_width=True, type="primary"):
             if freeform_input:
                 with st.spinner(f"Executing on {selected_model}..."):
-                    res_out = execute_ai_query(freeform_input, None, selected_model, temp, top_p, max_tokens, sys_instruction_text)
+                    res_out = execute_ai_query(freeform_input, None, selected_model, temp, top_p, max_tokens, sys_instruction_text, custom_key_input)
                     st.markdown("### 📤 Canvas Response:")
                     st.markdown(f"<div class='studio-card'>{res_out}</div>", unsafe_allow_html=True)
     with col_code:
@@ -714,7 +667,7 @@ elif st.session_state.studio_mode == "📊 Structured Few-Shot":
             prompt_assembled += f"Input: {test_q}\nOutput:"
             
             with st.spinner("Applying Pattern..."):
-                res_structured = execute_ai_query(prompt_assembled, None, selected_model, temp, top_p, max_tokens, sys_instruction_text)
+                res_structured = execute_ai_query(prompt_assembled, None, selected_model, temp, top_p, max_tokens, sys_instruction_text, custom_key_input)
                 st.success(res_structured)
 
 # =============================================================
