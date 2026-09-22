@@ -15,8 +15,8 @@ from PIL import Image
 # 1. PAGE CONFIGURATION & WHATSAPP THEME
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="Universal AI Super Copilot Pro",
-    page_icon="🌍",
+    page_title="Universal Master AI Copilot",
+    page_icon="👑",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -128,7 +128,7 @@ if "contacts" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
         "Chat 1": [
-            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Universal Executive AI Copilot hoon. Date, time, dunya ki geography, science, word meanings ya photo generation ke baray mein poochein."}
+            {"role": "assistant", "content": "Assalam-o-Alaikum! Main aapka Master AI Copilot hoon. Software coding, business strategy, viral scripts, world knowledge, photo generation ya WhatsApp control—jo chahein bolein."}
         ]
     }
 
@@ -139,7 +139,7 @@ if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
 
 # -------------------------------------------------------------
-# 3. LIVE REAL-TIME DATE, TIME & TIMEZONE ENGINE
+# 3. LIVE TIME & WORLD TIMEZONES
 # -------------------------------------------------------------
 MONTHS_URDU = {
     1: "January", 2: "February", 3: "March", 4: "April",
@@ -162,30 +162,56 @@ def get_live_time_and_date(text):
         formatted_date = f"{now.day} {month_name} {now.year}"
         local_time = now.strftime("%I:%M %p")
         
-        # World Timezones
         if "america" in t or "usa" in t or "us" in t:
             us_est = (now - datetime.timedelta(hours=9)).strftime("%I:%M %p")
             us_pst = (now - datetime.timedelta(hours=12)).strftime("%I:%M %p")
-            return f"America mein mukhtalif timezones hain:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
-        elif "dubai" in t or "uae" in t or "gulf" in t:
+            return f"America mein timezones:\n\n• **New York (Eastern Time):** {us_est}\n• **California (Pacific Time):** {us_pst}\n(Pakistan se taqreeban 9 se 12 ghantay peeche)."
+        elif "dubai" in t or "uae" in t:
             dubai_time = (now - datetime.timedelta(hours=1)).strftime("%I:%M %p")
-            return f"Dubai / UAE mein is waqt time **{dubai_time}** ho raha hai."
-        elif "london" in t or "uk" in t or "england" in t:
+            return f"Dubai / UAE mein time **{dubai_time}** ho raha hai."
+        elif "london" in t or "uk" in t:
             uk_time = (now - datetime.timedelta(hours=4)).strftime("%I:%M %p")
-            return f"London / UK mein is waqt time **{uk_time}** ho raha hai."
+            return f"London / UK mein time **{uk_time}** ho raha hai."
         elif "time" in t or "waqt" in t:
-            return f"Is waqt time **{local_time}** hai aur aaj ki tareekh **{formatted_date}** ({day_name}) hai."
+            return f"Is waqt time **{local_time}** hai aur aaj **{formatted_date}** ({day_name}) hai."
         else:
-            return f"Aaj ki tareekh **{formatted_date}** hai aur aaj **{day_name}** ka din hai."
+            return f"Aaj ki tareekh **{formatted_date}** hai aur din **{day_name}** hai."
     return None
 
 # -------------------------------------------------------------
-# 4. UNIVERSAL SMART REASONING & QUESTION ANSWER ENGINE
+# 4. UNIVERSAL MASTER PROMPT BRAIN (All Personas Included)
 # -------------------------------------------------------------
+MASTER_SYSTEM_INSTRUCTION = """
+Aap aik World-Class Universal Executive AI Copilot hain. Aap Roman Urdu aur English dono mein expert hain.
+
+Aapke Core Roles aur Frameworks:
+1. **Software Engineering & Coding:**
+   - Jab code maanga jaye to Senior Full-Stack Developer ban kar clean, modular, production-ready code dein (Python, JS, React, PHP, SQL).
+   - Error handling, validation aur comments shamil karein.
+
+2. **Business, Marketing & CMO:**
+   - Go-to-market (GTM) launch roadmaps, High-converting ad copies (AIDA, PAS hooks), Dropshipping profit economics, Unit economics calculate karein.
+
+3. **Executive Communications & Negotiation:**
+   - Professional, authoritative aur firm emails/letters likhein (payment recovery, client proposals, contracts).
+
+4. **Academic Professor & Tutor:**
+   - Mushkil topics ko pehle 10 saal ke bache ki tarah asaan misaal (analogy) se samjhayein, phir technical terms explain karein.
+
+5. **Viral Video Scriptwriter:**
+   - YouTube / Reels ke scripts likhte waqt brackets mein [Visual cues, B-Roll, Sound effects], 15-second curiosity hooks, aur CTA shamil karein.
+
+6. **Reverse Prompting:**
+   - Agar user broad business/life plan maange to pehle 4-5 zaroori sawalat pooch kar samajhein, phir solid roadmap dein.
+
+7. **Tooti-Phooti Zaban Samajhna:**
+   - User agar spelling ghalat likhe ya Roman Urdu tooti phooti ho, uska maqsad foran samajh kar seedha mukammal solution dein.
+"""
+
 def fetch_wikipedia_knowledge(clean_topic):
     try:
         url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_topic)}"
-        headers = {"User-Agent": "UniversalAIStudioBot/5.0"}
+        headers = {"User-Agent": "UniversalMasterCopilot/6.0"}
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
@@ -197,63 +223,38 @@ def fetch_wikipedia_knowledge(clean_topic):
 def generate_ai_response(user_text, conversation_history):
     t_low = user_text.lower().strip()
     
-    # 1. Live Time & Date Check
+    # Live Time & Date
     time_ans = get_live_time_and_date(user_text)
     if time_ans:
         return time_ans
 
-    # 2. Geography Answers
-    if "philippines" in t_low:
+    # Geography Quick Answers
+    if "philippines" in t_low and ("kahan" in t_low or "kahna" in t_low):
         return (
             "**Philippines Dunya Mein Kahan Waqea Hai?**\n\n"
-            "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein waqea aik jazeera numa (archipelago) mulk hai jo Pacific Ocean (Behr-e-Kahin) ke maghribi hissay mein hai.\n\n"
-            "• **Jazair (Islands):** Yeh taqreeban **7,641 jazair** par mushtamil hai.\n"
-            "• **Dar-ul-Hukoomat (Capital):** Iska capital **Manila** hai.\n"
-            "• **Aas Paas Ke Mumalik:** Iske maghrib mein South China Sea aur Vietnam hai, aur junoob (south) mein Indonesia aur Malaysia hain."
-        )
-    
-    if "studio" in t_low and ("matlab" in t_low or "mtlb" in t_low or "meaning" in t_low or "kya" in t_low or "kia" in t_low):
-        return (
-            "**Studio Ka Matlab Kya Hota Hai?**\n\n"
-            "**Studio** aik aisi makhsoos jagah ya kamray ko kehte hain jahan professional aur artistic kaam kiya jata hai:\n\n"
-            "1. **Photo Studio:** Jahan professional lighting aur cameras ke sath tasweerein khainchi aur edit ki jati hain.\n"
-            "2. **Music Studio:** Jahan gaane aur audio record hoti hai.\n"
-            "3. **Film/TV Studio:** Jahan dramay, movies aur news bulletins shoot hotay hain."
+            "Philippines **Janub Mashriqi Asia (Southeast Asia)** mein waqea aik jazeera numa (archipelago) mulk hai.\n"
+            "• **Islands:** Taqreeban **7,641 jazair** par mushtamil hai.\n"
+            "• **Capital:** **Manila** hai.\n"
+            "• **Location:** Pacific Ocean ke maghribi hissay mein waqea hai."
         )
 
-    if "america" in t_low and any(k in t_low for k in ["kahan", "kahna", "location"]):
-        return (
-            "**America (USA) Dunya Mein Kahan Waqea Hai?**\n\n"
-            "America **Shimali America (North America)** mein waqea hai.\n\n"
-            "• **Shimal (North):** Canada\n"
-            "• **Junoob (South):** Mexico aur Gulf of Mexico\n"
-            "• **Mashriq (East):** Atlantic Ocean\n"
-            "• **Maghrib (West):** Pacific Ocean\n\n"
-            "Iska capital **Washington, D.C.** hai aur iski kul **50 states** hain."
-        )
-
-    # 3. Live Fact Search (Wikipedia REST)
+    # Live Wikipedia Search for Global Knowledge
     extracted_topic = re.sub(r'(kon|hai|kya|kia|batao|kisi|who|is|what|h|wo|kaise|karo|bhi|main|mein|\?|!)', '', user_text, flags=re.IGNORECASE).strip()
     live_info = ""
     if len(extracted_topic) >= 3:
         live_info = fetch_wikipedia_knowledge(extracted_topic) or ""
 
-    # 4. Multi-Turn History
+    # Multi-turn history context
     history_context = ""
     for m in conversation_history[-6:]:
         history_context += f"{m['role']}: {m['content']}\n"
 
-    sys_prompt = (
-        "Aap aik highly intelligent, mature aur encyclopedic Universal Executive AI Copilot hain. "
-        "Aap Roman Urdu mein direct, informative aur insano jaisa tafseeli jawab dete hain.\n"
-        f"Fact Reference: {live_info}\n"
-        f"Pichla Context:\n{history_context}\n"
-        "User ke sawal ka foran logical aur step-by-step practical jawab dein."
-    )
+    final_sys_prompt = f"{MASTER_SYSTEM_INSTRUCTION}\n\nLive Fact Reference: {live_info}\nPichla Context:\n{history_context}"
 
+    # Gateway 1: Pollinations OpenAI Gateway
     try:
-        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(sys_prompt)}&model=openai"
-        res_t = requests.get(url_t, timeout=7)
+        url_t = f"https://text.pollinations.ai/{urllib.parse.quote(user_text)}?system={urllib.parse.quote(final_sys_prompt)}&model=openai"
+        res_t = requests.get(url_t, timeout=8)
         if res_t.status_code == 200 and len(res_t.text.strip()) > 15:
             txt = res_t.text.strip()
             if "I'm sorry" not in txt and "wazahat" not in txt:
@@ -261,10 +262,26 @@ def generate_ai_response(user_text, conversation_history):
     except Exception:
         pass
 
+    # Gateway 2: Gemini API via Secrets (If Set)
+    gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+    if gemini_key:
+        try:
+            url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+            headers_g = {"Content-Type": "application/json"}
+            payload_g = {
+                "system_instruction": {"parts": [{"text": final_sys_prompt}]},
+                "contents": [{"role": "user", "parts": [{"text": user_text}]}]
+            }
+            res_g = requests.post(url_g, headers=headers_g, json=payload_g, timeout=8)
+            if res_g.status_code == 200:
+                return res_g.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception:
+            pass
+
     if live_info:
         return f"**{extracted_topic.title()}** ke hawale se maloomat:\n\n{live_info}"
 
-    return f"Aapka sawal '{user_text}' note ho gaya hai. Is hawale se mukammal solution aur detail ke liye batayein main foran guide karta hoon."
+    return f"Aapka sawal '{user_text}' samajh aa gaya hai. Is hawale se mukammal step-by-step detail ke liye batayein main foran guide karta hoon."
 
 # -------------------------------------------------------------
 # 5. SMART PROMPT & IMAGE ENGINE (FLUX.1)
@@ -281,30 +298,20 @@ def is_photo_intent(text):
 def smart_enhance_prompt(raw_text):
     t = raw_text.lower()
     
-    # Couple / Romance Prompt Normalizer (Safe & Photorealistic)
-    if any(c in t for c in ["larka larki", "couple", "boy and girl", "love", "romantic", "dono"]):
-        return "A photorealistic 8k cinematic photograph of a beautiful young couple standing together in love, boy and girl romantic portrait, aesthetic warm lighting, high detail faces, cinematic depth of field, 8k resolution"
+    if any(c in t for c in ["couple", "larka larki", "romantic"]):
+        return "A photorealistic 8k cinematic portrait of a beautiful young couple standing together in love, warm aesthetic lighting, detailed faces, 8k resolution"
     
-    # Map
-    if "naksha" in t or "nakshy" in t or "map" in t:
+    if "naksha" in t or "map" in t:
         if "china" in t:
-            return "A clean detailed National Geographic style political and geographic map of China, accurate country borders, major cities, clean 8k infographic cartography"
+            return "A clean detailed National Geographic style map of China, accurate borders, major cities, 8k cartography"
         elif "pakistan" in t:
-            return "A clean detailed National Geographic style map of Pakistan, accurate national borders, provinces, clean 8k cartography"
-        return f"A detailed National Geographic style geographic cartography map of {raw_text}, clean 8k"
-    
-    # Celebrities / People
+            return "A clean detailed National Geographic style map of Pakistan, accurate borders, 8k cartography"
+        return f"A detailed National Geographic style map of {raw_text}, 8k"
+
     celeb_map = {
-        "sharu": "Bollywood superstar Shah Rukh Khan",
-        "shahrukh": "Bollywood superstar Shah Rukh Khan",
-        "srk": "Bollywood superstar Shah Rukh Khan",
-        "slaman": "Bollywood superstar Salman Khan",
-        "salman": "Bollywood superstar Salman Khan",
-        "aswariya": "Bollywood actress Aishwarya Rai",
-        "kajal": "Indian actress Kajal Aggarwal",
-        "alo arjun": "South Indian superstar Allu Arjun",
-        "imran khan": "Imran Khan handsome portrait",
-        "babar azam": "Babar Azam cricketer"
+        "sharu": "Shah Rukh Khan", "shahrukh": "Shah Rukh Khan", "srk": "Shah Rukh Khan",
+        "slaman": "Salman Khan", "salman": "Salman Khan", "aswariya": "Aishwarya Rai",
+        "kajal": "Kajal Aggarwal", "alo arjun": "Allu Arjun", "imran khan": "Imran Khan handsome portrait"
     }
     
     found = []
@@ -314,13 +321,13 @@ def smart_enhance_prompt(raw_text):
                 found.append(v)
                 
     if len(found) >= 2:
-        return f"A realistic 8k photograph of {found[0]} standing together side by side with {found[1]}, studio portrait, detailed authentic facial likeness, natural studio lighting, 8k resolution"
+        return f"A realistic 8k photograph of {found[0]} standing together side by side with {found[1]}, studio portrait, detailed authentic face likeness, 8k"
     elif len(found) == 1:
         clean = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|ki|sath|kay|r|aur)', '', t).strip()
-        return f"A realistic 8k photograph portrait of {found[0]}, {clean}, detailed authentic face, cinematic lighting, 8k resolution"
+        return f"A realistic 8k photograph portrait of {found[0]}, {clean}, detailed authentic face, 8k resolution"
 
     clean_p = re.sub(r'(photo|pic|image|tasweer|picture|banao|bano|generate|create|ki|ka)', '', raw_text, flags=re.IGNORECASE).strip()
-    return f"A high quality 8k photorealistic image of {clean_p}, cinematic studio lighting, highly detailed, 8k resolution"
+    return f"A high quality 8k photorealistic image of {clean_p}, cinematic studio lighting, 8k resolution"
 
 def generate_flux_image_url(prompt_text):
     clean_p = urllib.parse.quote(prompt_text.strip())
@@ -382,7 +389,7 @@ for idx, msg in enumerate(current_messages):
         st.markdown(f"""
         <div class='chat-bubble-ai'>
             <div class='msg-header'>
-                <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ AI Executive Copilot</span>
+                <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Master AI Copilot</span>
                 <button onclick="{copy_js}" title="Copy Message" class="dots-menu">⋮</button>
             </div>
             {content}
@@ -528,7 +535,7 @@ if user_input:
             generated_img = generate_flux_image_url(enhanced_prompt)
             ai_reply = f"Maine **'{st.session_state.last_image_prompt}'** ki FLUX realistic photo dobara tayyar kar di hai:"
 
-    # 2. PHOTO & MAP INTENT
+    # 2. PHOTO INTENT
     elif is_photo_intent(user_input):
         clean_raw = user_input
         st.session_state.last_image_prompt = clean_raw
@@ -565,9 +572,9 @@ if user_input:
             ai_reply = f"'{target_name}' ka number phonebook mein nahi mila, WhatsApp launch kiya ja raha hai."
             options.append({"name": "WhatsApp Launch", "url": wa_url})
 
-    # 4. UNIVERSAL WORLD KNOWLEDGE & LIVE TIME
+    # 4. UNIVERSAL MASTER REASONING & SOLUTIONS (Dev, Marketing, Writing, Education, Knowledge)
     else:
-        with st.spinner("AI dunya ke facts aur live data check kar raha hai..."):
+        with st.spinner("AI master framework se solution analyze kar raha hai..."):
             ai_reply = generate_ai_response(user_input, current_messages)
 
     # Display Output
@@ -577,7 +584,7 @@ if user_input:
     st.markdown(f"""
     <div class='chat-bubble-ai'>
         <div class='msg-header'>
-            <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ AI Executive Copilot</span>
+            <span style='font-size:12px; color:#128C7E; font-weight:600;'>✨ Master AI Copilot</span>
             <button onclick="{copy_js_now}" title="Copy Message" class="dots-menu">⋮</button>
         </div>
         {ai_reply}
