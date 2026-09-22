@@ -15,7 +15,7 @@ from io import BytesIO
 from PIL import Image
 
 # -------------------------------------------------------------
-# LIBRARIES: TOKENIZER, PDF & OCR ENGINES (Part 1 & Part 3)
+# 1. DEPENDENCIES & LIBRARIES (Tokenizer, PDF, OCR)
 # -------------------------------------------------------------
 try:
     import tiktoken
@@ -27,25 +27,26 @@ except Exception:
         return len(text.split()) + (len(text) // 4)
 
 try:
-    import fitz  # PyMuPDF for PDF Processing
+    import fitz  # PyMuPDF
 except ImportError:
     fitz = None
 
 # -------------------------------------------------------------
-# 1. PAGE CONFIGURATION & ENTERPRISE STUDIO STYLING
+# 2. PAGE CONFIGURATION & ENTERPRISE STUDIO STYLING
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="Google AI Studio Universal Enterprise",
+    page_title="Universal Google AI Studio Enterprise",
     page_icon="👑",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Persistent JSON Database Files (Part 5)
+# Persistent Database File Paths (Part 5)
 DB_KEYS_FILE = "api_keys_db.json"
 DB_PROMPTS_FILE = "saved_prompts_db.json"
 DB_TUNING_FILE = "fine_tuned_models.json"
 CACHE_FILE = "prompt_cache.json"
+CONTACTS_FILE = "my_contacts.json"
 
 st.markdown("""
 <style>
@@ -97,6 +98,9 @@ st.markdown("""
         color: #8696A0;
         padding: 0 4px;
     }
+    .dots-menu:hover {
+        color: #111B21;
+    }
     .token-badge {
         background: #F1F5F9;
         border: 1px solid #CBD5E1;
@@ -113,6 +117,17 @@ st.markdown("""
         padding: 14px;
         margin: 8px 0;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .action-card {
+        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+        color: white !important;
+        padding: 8px 16px;
+        border-radius: 12px;
+        margin: 6px 4px 6px 0;
+        display: inline-block;
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 0 2px 6px rgba(37,211,102,0.3);
     }
     div[data-testid="stChatInput"] {
         padding-bottom: 8px !important;
@@ -132,7 +147,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. DATABASE & CACHE PERSISTENCE ENGINE (Part 5)
+# 3. DATABASE, STORAGE & CACHE ENGINES (Part 5)
 # -------------------------------------------------------------
 def load_json_db(file_path, default_data):
     if os.path.exists(file_path):
@@ -157,8 +172,9 @@ if "api_keys_db" not in st.session_state:
 
 if "saved_prompts_db" not in st.session_state:
     st.session_state.saved_prompts_db = load_json_db(DB_PROMPTS_FILE, {
-        "Senior Full-Stack Architect": "Act as a Senior Software Architect. Provide modular, production-ready code with error handling.",
-        "CMO Viral Marketing": "Act as a Chief Marketing Officer. Create a 30-day GTM roadmap with high-converting AIDA hooks."
+        "Senior Full-Stack Architect": "Act as a Senior Software Architect. Provide clean, modular, production-ready code with error handling.",
+        "CMO Viral Marketing": "Act as a Chief Marketing Officer. Create a 30-day GTM roadmap with high-converting AIDA hooks.",
+        "Feynman Academic Tutor": "Act as a World-Class Professor. Explain complex topics using simple real-world analogies."
     })
 
 if "fine_tuned_models" not in st.session_state:
@@ -170,27 +186,12 @@ if "prompt_cache" not in st.session_state:
 if "rate_limit_tracker" not in st.session_state:
     st.session_state.rate_limit_tracker = {}
 
-# -------------------------------------------------------------
-# 3. RATE LIMITER & TOKEN BUCKET ALGORITHM (Part 4)
-# -------------------------------------------------------------
-def check_rate_limit(client_id="default_user", max_rpm=15):
-    """15 Requests Per Minute Token Bucket Algorithm (Part 4)"""
-    now = datetime.datetime.now()
-    tracker = st.session_state.rate_limit_tracker.get(client_id, [])
-    # Keep timestamps within the last 60 seconds
-    tracker = [ts for ts in tracker if (now - ts).total_seconds() < 60]
-    if len(tracker) >= max_rpm:
-        st.session_state.rate_limit_tracker[client_id] = tracker
-        return False, 60 - int((now - tracker[0]).total_seconds())
-    tracker.append(now)
-    st.session_state.rate_limit_tracker[client_id] = tracker
-    return True, 0
-
-# -------------------------------------------------------------
-# 4. KEYS & MULTI-MODEL ROUTER (Parts 1, 2, 4)
-# -------------------------------------------------------------
-OPENROUTER_KEY = st.secrets.get("OPENROUTER_API_KEY", "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").strip()
-GROQ_KEY = st.secrets.get("GROQ_API_KEY", "gsk_dqgImqZeEvTftYuFUqxUWWGdyb3FYHHqdjhz5MaVgbhSNpQwDllsK").strip()
+if "contacts" not in st.session_state:
+    st.session_state.contacts = load_json_db(CONTACTS_FILE, {
+        "love (personal)": "923001234567",
+        "love (office)": "923219876543",
+        "ghulam rasool": "923123456789"
+    })
 
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {
@@ -212,10 +213,27 @@ if "few_shot_data" not in st.session_state:
     ]
 
 # -------------------------------------------------------------
-# 5. HIGH-SPEED INFERENCE & MEDIA PIPELINES (Parts 1, 2, 5)
+# 4. RATE LIMITER & TOKEN BUCKET ALGORITHM (Part 4)
 # -------------------------------------------------------------
+def check_rate_limit(client_id="default_user", max_rpm=15):
+    now = datetime.datetime.now()
+    tracker = st.session_state.rate_limit_tracker.get(client_id, [])
+    tracker = [ts for ts in tracker if (now - ts).total_seconds() < 60]
+    if len(tracker) >= max_rpm:
+        st.session_state.rate_limit_tracker[client_id] = tracker
+        return False, 60 - int((now - tracker[0]).total_seconds())
+    tracker.append(now)
+    st.session_state.rate_limit_tracker[client_id] = tracker
+    return True, 0
+
+# -------------------------------------------------------------
+# 5. KEYS & MULTI-MODEL ROUTER (Parts 1, 2, 4)
+# -------------------------------------------------------------
+OPENROUTER_KEY = st.secrets.get("OPENROUTER_API_KEY", "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").strip()
+GROQ_KEY = st.secrets.get("GROQ_API_KEY", "gsk_dqgImqZeEvTftYuFUqxUWWGdyb3FYHHqdjhz5MaVgbhSNpQwDllsK").strip()
+
 def transcribe_audio_whisper(audio_bytes, filename="audio.mp3"):
-    """Whisper Large-v3 Audio Transcriber via Groq High-Speed LPU (Part 1.3)"""
+    """Whisper Large-v3 Audio Transcriber via Groq LPU (Part 1.3)"""
     if not GROQ_KEY:
         return "⚠️ GROQ_API_KEY missing for Whisper Large-v3."
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -254,10 +272,21 @@ def generate_flux_image_url(prompt_text):
     return f"https://image.pollinations.ai/prompt/{clean_p}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
 
 # -------------------------------------------------------------
-# 6. MASTER AI ROUTER WITH PROMPT CACHING & PARAMETERS (Part 2, 3, 5)
+# 6. UNIVERSAL INTELLIGENCE & MULTI-TURN ENGINE (Parts 1, 2, 3, 5)
 # -------------------------------------------------------------
+MASTER_SYSTEM_INSTRUCTION = """
+Aap Google AI Studio ke complete 7-Part Architecture par mabni World-Class Universal Executive AI Master Copilot hain.
+Aap Roman Urdu aur English dono mein dunya ke har topic par 100% accurate, expert aur production-level solution dete hain.
+
+Aapke Core Specializations:
+1. **Software Engineering & Coding (DeepSeek-V3 / Llama Mode):** Clean, modular, error-free production code likhein (Python, JS, React, PHP, SQL) with setup explanation.
+2. **Business, Strategy & Marketing (CMO Mode):** 30-day GTM roadmaps, high-converting ad copy (AIDA/PAS), SWOT analysis aur dropshipping unit economics calculate karein.
+3. **Academic Professor & Life Advice (Feynman Mode):** Har mushkil concept, dunya ki geography, history aur daily life maslay ka step-by-step practical hal samjhayein.
+4. **Tooti-Phooti Zaban:** User agar spelling ghalat likhe ya Roman Urdu tooti phooti ho, uska maqsad foran samajh kar direct solution dein.
+"""
+
 def execute_ai_query(prompt_text, history=None, model="meta-llama/llama-3.3-70b-instruct", temp=0.7, top_p=0.9, max_tokens=2048, sys_prompt="", image_pil=None, pdf_data=None):
-    # Check In-Memory Dynamic Prompt Cache (Part 5.3)
+    # Check 0ms In-Memory Prompt Cache (Part 5.3)
     cache_key = f"{model}_{prompt_text.strip()[:100]}"
     if not image_pil and not pdf_data and cache_key in st.session_state.prompt_cache:
         return st.session_state.prompt_cache[cache_key] + " *(⚡ 0ms Cached Response)*"
@@ -270,7 +299,7 @@ def execute_ai_query(prompt_text, history=None, model="meta-llama/llama-3.3-70b-
     else:
         chosen_model = model
 
-    messages = [{"role": "system", "content": sys_prompt if sys_prompt else "Aap aik Universal Executive AI Copilot hain."}]
+    messages = [{"role": "system", "content": sys_prompt if sys_prompt else MASTER_SYSTEM_INSTRUCTION}]
     if history:
         for m in history[-6:]:
             messages.append({"role": m["role"], "content": m["content"]})
@@ -292,6 +321,26 @@ def execute_ai_query(prompt_text, history=None, model="meta-llama/llama-3.3-70b-
         final_prompt = f"{prompt_text}\n\n[Document Context]:\n{pdf_text[:3000]}" if pdf_text else prompt_text
         messages.append({"role": "user", "content": final_prompt})
 
+    # Try Groq High-Speed LPU First for Llama Models
+    if not has_visual and "llama" in chosen_model and GROQ_KEY:
+        headers_g = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        payload_g = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": messages,
+            "temperature": temp,
+            "max_tokens": max_tokens
+        }
+        try:
+            res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_g, json=payload_g, timeout=15)
+            if res_g.status_code == 200:
+                reply = res_g.json()["choices"][0]["message"]["content"]
+                st.session_state.prompt_cache[cache_key] = reply
+                save_json_db(CACHE_FILE, st.session_state.prompt_cache)
+                return reply
+        except Exception:
+            pass
+
+    # OpenRouter Multi-Model Gateway
     headers = {
         "Authorization": f"Bearer {OPENROUTER_KEY}",
         "Content-Type": "application/json",
@@ -324,7 +373,7 @@ def export_code_snippets(model, temp, max_tokens, sys_p, user_p, lang):
     if lang == "Python":
         return f'''import requests
 
-headers = {{"Authorization": "Bearer YOUR_OPENROUTER_KEY", "Content-Type": "application/json"}}
+headers = {{"Authorization": "Bearer YOUR_API_KEY", "Content-Type": "application/json"}}
 payload = {{
     "model": "{model}",
     "messages": [
@@ -370,12 +419,12 @@ val body = RequestBody.create(mediaType, """{{"model":"{model}"}}""")'''
     return "// Code snippet generated."
 
 # -------------------------------------------------------------
-# 8. SIDEBAR: LEFT PANEL & RIGHT PANEL CONTROLS (Parts 3, 4, 6)
+# 8. SIDEBAR: NAVIGATION & RIGHT PANEL CONTROLS (Parts 3, 4, 6)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 👑 Studio Master Navigation")
     
-    # Mode Selection (Part 3.A)
+    # 5 Master Modes (Part 3.A, 4, 6)
     st.session_state.studio_mode = st.radio(
         "Workspace Mode:",
         [
@@ -391,7 +440,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🎛️ Model Parameters (Right Panel)")
     
-    # Available Models (Includes Fine-Tuned Models Registry from Part 6)
     base_models = [
         "meta-llama/llama-3.3-70b-instruct",
         "deepseek/deepseek-chat",
@@ -403,13 +451,13 @@ with st.sidebar:
     
     selected_model = st.selectbox("Foundation / Custom Model:", all_models, index=0)
     
-    # Parameters Sliders (Part 3.C)
+    # Sliders (Part 3.C)
     temp = st.slider("Temperature (Creativity):", 0.0, 2.0, 0.7, 0.05)
     top_p = st.slider("Top-P (Nucleus Sampling):", 0.0, 1.0, 0.9, 0.05)
     max_tokens = st.slider("Max Output Tokens:", 512, 16384, 2048, 512)
     stop_seq = st.text_input("Stop Sequences:", placeholder="e.g. END, ###")
     
-    # Safety Level Thresholds (Part 3.C)
+    # 4 Safety Filters (Part 3.C)
     with st.expander("🛡️ Safety Filter Sliders (4 Levels)", expanded=False):
         st.select_slider("Harassment:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
         st.select_slider("Hate Speech:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
@@ -417,9 +465,8 @@ with st.sidebar:
         st.select_slider("Dangerous Content:", ["Block None", "Block Few", "Block Some", "Block Most"], value="Block None")
 
     st.markdown("---")
-    # Saved Prompts & Folder System (Part 3.A)
-    with st.expander("💾 Saved Prompts Manager", expanded=False):
-        p_name = st.text_input("Save Current Prompt As:")
+    with st.expander("💾 Saved Prompts Manager (Folders)", expanded=False):
+        p_name = st.text_input("Save Prompt As:")
         if st.button("Save Template", use_container_width=True):
             if p_name:
                 st.session_state.saved_prompts_db[p_name] = "Current Template"
@@ -578,8 +625,10 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
     </script>
     """, height=0, width=0)
 
-    # File Attachment Trigger in Chat Mode
-    uploaded_file = st.file_uploader("Upload Image, Audio, or PDF:", type=["jpg", "png", "jpeg", "pdf", "mp3", "wav"], key="chat_file_uploader")
+    # File Attachment in Sidebar
+    with st.sidebar:
+        st.markdown("### 📎 Attach Media to Chat")
+        uploaded_file = st.file_uploader("Upload Image, Audio, or PDF:", type=["jpg", "png", "jpeg", "pdf", "mp3", "wav"], key="chat_file_uploader")
 
     user_input = st.chat_input("Prompt likhein ya bolein...")
     if user_input:
@@ -593,7 +642,6 @@ if st.session_state.studio_mode == "💬 Chat Prompt Mode":
             t_low = user_input.lower()
             gen_img = None
             
-            # Check Image Generation
             if any(k in t_low for k in ["photo", "pic", "image", "tasweer", "banao", "generate", "naksha"]):
                 with st.spinner("🎨 FLUX.1 Studio Rendering 8K Image..."):
                     gen_img = generate_flux_image_url(user_input)
@@ -628,7 +676,6 @@ elif st.session_state.studio_mode == "📝 Freeform Canvas":
     
     freeform_input = st.text_area("Canvas Input:", height=250, placeholder="Write your full system prompt, context, or code to execute...")
     
-    # Real-Time Token Counter (Part 3.B)
     total_tokens = count_tokens(freeform_input + sys_instruction_text)
     st.markdown(f"<span class='token-badge'>🔢 Active Tokens: <b>{total_tokens}</b> / {max_tokens}</span>", unsafe_allow_html=True)
     
